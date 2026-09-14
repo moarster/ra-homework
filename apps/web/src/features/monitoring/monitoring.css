@@ -1,0 +1,48 @@
+/*
+ * Адаптивность плашки машины по ширине правой области (контейнер `monitor` объявлен в
+ * `SplitLayout`), а не по ширине окна. Показатели не переносятся и не сжимаются: при нехватке
+ * места они скрываются с конца списка приоритетов (раздел 9.1 CONTEXT.md).
+ *
+ * Пороги выведены из геометрии плашки: отступы списка и плашки 48 px, полоса светофора 4 px,
+ * блок номера 96 px, первый показатель (статус и скорость) 112 px, остальные по 76 px
+ * с зазором 8 px. Первые два показателя помещаются в минимальную ширину области 360 px.
+ */
+
+.vehicle-card-metric {
+  display: none;
+}
+
+.vehicle-card-metric[data-rank="1"],
+.vehicle-card-metric[data-rank="2"] {
+  display: flex;
+}
+
+@container monitor (min-width: 448px) {
+  .vehicle-card-metric[data-rank="3"] {
+    display: flex;
+  }
+}
+
+@container monitor (min-width: 532px) {
+  .vehicle-card-metric[data-rank="4"] {
+    display: flex;
+  }
+}
+
+@container monitor (min-width: 616px) {
+  .vehicle-card-metric[data-rank="5"] {
+    display: flex;
+  }
+}
+
+@container monitor (min-width: 700px) {
+  .vehicle-card-metric[data-rank="6"] {
+    display: flex;
+  }
+}
+
+@container monitor (min-width: 784px) {
+  .vehicle-card-metric[data-rank="7"] {
+    display: flex;
+  }
+}

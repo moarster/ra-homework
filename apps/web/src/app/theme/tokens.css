@@ -1,0 +1,144 @@
+/*
+ * Дизайн-токены. Единственное место, где живут цвета, радиусы, тени и длительности переходов.
+ * Компоненты знают только токены и ничего не знают о текущей теме: тема переключается
+ * атрибутом `data-theme` на `html` и переопределяет значения этих же переменных.
+ */
+
+:root {
+  /* primary - teal, accent - cinnabar (раздел 11 CONTEXT.md) */
+  --primary-400: #2ec4b2;
+  --primary-500: #12a594;
+  --primary-600: #0e8c7e;
+  --primary-700: #0b7166;
+  --primary-fg: #ffffff;
+
+  --accent-500: #e0492f;
+  --accent-600: #c63d26;
+  --accent-fg: #ffffff;
+
+  /* Светофор: единые цвета для карты, плашек, графиков, бейджей и сводок. */
+  --sev-ok: #2fa36b;
+  --sev-warn: #c9881a;
+  --sev-alarm: #d9453d;
+  --sev-unknown: #7b848b;
+
+  /* Геометрия и движение стекла. */
+  --radius-panel: 20px;
+  --radius-control: 12px;
+  --radius-pill: 999px;
+  --glass-blur: 20px;
+  --glass-saturate: 1.4;
+  --motion-fast: 150ms;
+  --motion-slow: 250ms;
+  --motion-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+/* ------------------------------------------------------------------ светлая тема */
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f4f7f7;
+  /* Полотно под плавающими панелями: карта и спутниковый снимок. */
+  --bg-deep: #dde5e5;
+
+  --surface: rgb(255 255 255 / 0.72);
+  --surface-strong: rgb(255 255 255 / 0.9);
+  --surface-weak: rgb(255 255 255 / 0.45);
+  /* Подложка под панелями поверх спутникового снимка: без нее текст не читается. */
+  --surface-scrim: rgb(16 32 31 / 0.18);
+  /*
+   * Поверхность всплывашки над снимком. Плотнее обычного стекла и намеренно почти
+   * непрозрачная: панели интерфейса стоят по краям области, где снимок предсказуемо темный,
+   * а всплывашка всплывает где угодно - хоть на белом отвале. Полупрозрачная подложка там
+   * не гарантирует контраст приглушенному тексту, а он в ней основной.
+   */
+  --surface-popup: rgb(250 253 252 / 0.95);
+  --surface-hover: rgb(16 32 31 / 0.06);
+  --surface-active: rgb(16 32 31 / 0.11);
+
+  --border: rgb(16 32 31 / 0.12);
+  --border-strong: rgb(16 32 31 / 0.22);
+  --border-glass: rgb(255 255 255 / 0.65);
+
+  --fg: #10201f;
+  --fg-muted: #475a58;
+  --fg-faint: #5f6f6d;
+  --fg-on-glass: #10201f;
+
+  --shadow-panel: 0 8px 28px rgb(16 32 31 / 0.12), 0 1px 3px rgb(16 32 31 / 0.08);
+  --shadow-float: 0 16px 44px rgb(16 32 31 / 0.2), 0 2px 6px rgb(16 32 31 / 0.12);
+
+  --sev-ok-soft: rgb(47 163 107 / 0.16);
+  --sev-warn-soft: rgb(201 136 26 / 0.18);
+  --sev-alarm-soft: rgb(217 69 61 / 0.16);
+  --sev-unknown-soft: rgb(123 132 139 / 0.16);
+
+  /*
+   * Текстовые варианты светофора. Насыщенные цвета заливки на светлом фоне не добирают
+   * контраст AA для мелкого текста, поэтому текст и заливка разведены: `--sev-*` красит
+   * точки, машинки и треки, `--sev-*-text` - надписи и значения.
+   */
+  --sev-ok-text: #157a4b;
+  --sev-warn-text: #8a5a0c;
+  --sev-alarm-text: #ba372f;
+  --sev-unknown-text: #576066;
+
+  --primary-soft: rgb(18 165 148 / 0.14);
+  --accent-soft: rgb(224 73 47 / 0.14);
+  /* Основной оттенок текста поверх стекла: в светлой теме темнее базового primary. */
+  --primary-text: var(--primary-700);
+  --accent-text: var(--accent-600);
+}
+
+/* ------------------------------------------------------------------ темная тема */
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0b1416;
+  --bg-deep: #060c0d;
+
+  --surface: rgb(255 255 255 / 0.06);
+  --surface-strong: rgb(255 255 255 / 0.11);
+  --surface-weak: rgb(255 255 255 / 0.03);
+  --surface-scrim: rgb(3 8 9 / 0.45);
+  --surface-popup: rgb(20 31 32 / 0.94);
+  --surface-hover: rgb(255 255 255 / 0.08);
+  --surface-active: rgb(255 255 255 / 0.14);
+
+  --border: rgb(255 255 255 / 0.12);
+  --border-strong: rgb(255 255 255 / 0.24);
+  --border-glass: rgb(255 255 255 / 0.16);
+
+  --fg: #e6f0ef;
+  --fg-muted: #a3b4b2;
+  --fg-faint: #7e8f8d;
+  --fg-on-glass: #e6f0ef;
+
+  --shadow-panel: 0 10px 30px rgb(0 0 0 / 0.45), 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-float: 0 20px 50px rgb(0 0 0 / 0.6), 0 2px 8px rgb(0 0 0 / 0.5);
+
+  /* В темной теме светофор чуть светлее: на темном фоне насыщенные тона темнеют. */
+  --sev-ok: #41c184;
+  --sev-warn: #e0a32e;
+  --sev-alarm: #f0635a;
+  --sev-unknown: #8a9299;
+
+  --sev-ok-soft: rgb(65 193 132 / 0.18);
+  --sev-warn-soft: rgb(224 163 46 / 0.18);
+  --sev-alarm-soft: rgb(240 99 90 / 0.18);
+  --sev-unknown-soft: rgb(138 146 153 / 0.18);
+
+  /* На темном фоне светлые оттенки светофора контрастны сами по себе. */
+  --sev-ok-text: var(--sev-ok);
+  --sev-warn-text: var(--sev-warn);
+  --sev-alarm-text: var(--sev-alarm);
+  --sev-unknown-text: var(--sev-unknown);
+
+  --primary-soft: rgb(46 196 178 / 0.18);
+  --accent-soft: rgb(224 73 47 / 0.2);
+  --primary-text: var(--primary-400);
+  --accent-text: #f0765c;
+}

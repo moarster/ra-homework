@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ra-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@ra/web", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "ra-server",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@ra/server", "dev"],
+      "port": 3001
+    }
+  ]
+}

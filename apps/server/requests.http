@@ -1,0 +1,114 @@
+# Примеры всех запросов API.
+#
+# Формат понимают IntelliJ HTTP Client и расширение REST Client для VS Code.
+# Времена - unix seconds ВИРТУАЛЬНОГО времени симуляции: перед работой возьмите
+# текущее значение из `GET /api/sim` (поле simTime) и подставьте его в @now.
+#
+# Аналоги на curl лежат в `scripts/api-examples.sh`, проверка websocket -
+# в `scripts/ws-probe.mjs`.
+
+# Подставьте simTime из `GET /api/sim` в @now, остальные метки посчитайте от него:
+# @from15m = now - 900, @from1h = now - 3600, @from12h = now - 43200.
+@host = http://localhost:3001
+@now = 1789248798
+@from15m = 1789247898
+@from1h = 1789245198
+@from12h = 1789205598
+
+### Состояние сервера: время работы, число машин, память, отставание часов
+GET {{host}}/api/health
+
+### Состояние симуляции
+GET {{host}}/api/sim
+
+### Конфигурация приложения
+GET {{host}}/api/config
+
+### Все справочники одним ответом (кешируется по ETag)
+GET {{host}}/api/dictionaries
+
+### Справочники повторно: с известным ETag должен прийти 304
+GET {{host}}/api/dictionaries
+If-None-Match: "подставить-etag-из-предыдущего-ответа"
+
+### Список машин с НСИ
+GET {{host}}/api/vehicles
+
+### Последние снапшоты всех машин
+GET {{host}}/api/telemetry/latest
+
+### Серии: все показатели светофора по всем машинам за час
+GET {{host}}/api/telemetry/series?from={{from1h}}&to={{now}}&maxPoints=1000
+
+### Серии: две машины, три показателя, 12 часов, 1000 точек
+# Здесь видно, что аварийные пики не исчезают при сжатии: поле sev остается 2.
+GET {{host}}/api/telemetry/series
+  ?vehicleIds=v-12,v-07
+  &metrics=ENGINE_COOLANT_TEMPERATURE,TRANSMISSION_OIL_TEMPERATURE,BRAKE_TEMPERATURE_MAX
+  &from={{from12h}}
+  &to={{now}}
+  &maxPoints=1000
+
+### Серии: 15 минут - обслуживается сырым уровнем, шаг 1 секунда
+GET {{host}}/api/telemetry/series?vehicleIds=v-12&metrics=ENGINE_RPM&from={{from15m}}&to={{now}}&maxPoints=1000
+
+### Треки всех машин за час
+GET {{host}}/api/telemetry/track?from={{from1h}}&to={{now}}&maxPoints=600
+
+### Трек одной машины со светофором только по отслеживаемым показателям
+GET {{host}}/api/telemetry/track
+  ?vehicleIds=v-12
+  &from={{from1h}}
+  &to={{now}}
+  &maxPoints=600
+  &severityMetrics=BRAKE_TEMPERATURE_FRONT_LEFT,BRAKE_TEMPERATURE_FRONT_RIGHT,BRAKE_TEMPERATURE_REAR_LEFT,BRAKE_TEMPERATURE_REAR_RIGHT
+
+### События за 12 часов
+GET {{host}}/api/events?from={{from12h}}&to={{now}}&limit=500
+
+### События: только аварии одной машины
+GET {{host}}/api/events?vehicleIds=v-12&from={{from12h}}&to={{now}}&severity=2&limit=500
+
+### Сводка по машине за 12 часов
+GET {{host}}/api/vehicles/v-12/summary?from={{from12h}}&to={{now}}
+
+### Изменение параметров симуляции: 60 машин, ускорение x60, мера хаоса "безобразие"
+POST {{host}}/api/sim
+Content-Type: application/json
+
+{
+  "vehicleCount": 60,
+  "timeScale": 60,
+  "chaos": "UGLY"
+}
+
+### Возврат к демонстрационному режиму: три машины, реальное время, норма
+POST {{host}}/api/sim
+Content-Type: application/json
+
+{
+  "vehicleCount": 3,
+  "timeScale": 1,
+  "chaos": "NORMAL"
+}
+
+### Пауза и возобновление симуляции
+POST {{host}}/api/sim
+Content-Type: application/json
+
+{ "running": false }
+
+### Ошибка: перевернутый период
+GET {{host}}/api/telemetry/series?from={{now}}&to={{from1h}}
+
+### Ошибка: неизвестная машина
+GET {{host}}/api/telemetry/series?vehicleIds=v-999&from={{from1h}}&to={{now}}
+
+### Ошибка: неизвестный показатель
+GET {{host}}/api/telemetry/series?metrics=NO_SUCH_METRIC&from={{from1h}}&to={{now}}
+
+### Ошибка: недопустимая скорость времени
+POST {{host}}/api/sim
+Content-Type: application/json
+
+{ "timeScale": 7 }

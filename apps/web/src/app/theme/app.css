@@ -1,0 +1,176 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/*
+ * Токены публикуются в Tailwind через `@theme inline`: утилиты вида `bg-surface` раскрываются
+ * в `var(--surface)`, поэтому переключение темы мгновенно меняет уже отрисованный экран
+ * и не требует пересборки классов.
+ */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-deep: var(--bg-deep);
+
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-surface-weak: var(--surface-weak);
+  --color-surface-scrim: var(--surface-scrim);
+  --color-surface-popup: var(--surface-popup);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+
+  --color-border-base: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-border-glass: var(--border-glass);
+
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-faint: var(--fg-faint);
+
+  --color-primary: var(--primary-500);
+  --color-primary-600: var(--primary-600);
+  --color-primary-700: var(--primary-700);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-text: var(--primary-text);
+
+  --color-accent: var(--accent-500);
+  --color-accent-600: var(--accent-600);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+
+  --color-sev-ok: var(--sev-ok);
+  --color-sev-warn: var(--sev-warn);
+  --color-sev-alarm: var(--sev-alarm);
+  --color-sev-unknown: var(--sev-unknown);
+  --color-sev-ok-text: var(--sev-ok-text);
+  --color-sev-warn-text: var(--sev-warn-text);
+  --color-sev-alarm-text: var(--sev-alarm-text);
+  --color-sev-unknown-text: var(--sev-unknown-text);
+
+  --color-sev-ok-soft: var(--sev-ok-soft);
+  --color-sev-warn-soft: var(--sev-warn-soft);
+  --color-sev-alarm-soft: var(--sev-alarm-soft);
+  --color-sev-unknown-soft: var(--sev-unknown-soft);
+
+  --radius-panel: var(--radius-panel);
+  --radius-control: var(--radius-control);
+  --radius-pill: var(--radius-pill);
+
+  --shadow-panel: var(--shadow-panel);
+  --shadow-float: var(--shadow-float);
+
+  --font-sans:
+    "Inter", "SF Pro Text", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    sans-serif;
+  --font-mono:
+    "JetBrains Mono", "SF Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+  }
+
+  /* Переключение темы затрагивает весь экран, поэтому переход задается один раз здесь. */
+  body,
+  body * {
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: var(--motion-fast);
+    transition-timing-function: var(--motion-ease);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--primary-500);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--primary-soft);
+  }
+
+  /* Скроллбары внутри стеклянных панелей: тонкие и нейтральные. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+
+  /* Уважение prefers-reduced-motion должно перебивать переходы, заданные утилитами Tailwind. */
+  @media (prefers-reduced-motion: reduce) {
+    body,
+    body *,
+    body *::before,
+    body *::after {
+      /* biome-ignore lint/complexity/noImportantStyles: перебиваем утилиты Tailwind намеренно */
+      animation-duration: 0.01ms !important;
+      /* biome-ignore lint/complexity/noImportantStyles: перебиваем утилиты Tailwind намеренно */
+      animation-iteration-count: 1 !important;
+      /* biome-ignore lint/complexity/noImportantStyles: перебиваем утилиты Tailwind намеренно */
+      transition-duration: 0.01ms !important;
+      /* biome-ignore lint/complexity/noImportantStyles: перебиваем утилиты Tailwind намеренно */
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/*
+ * Liquid glass как системный приём: одна утилита на все полупрозрачные поверхности,
+ * чтобы стекло выглядело одинаково во всем продукте.
+ */
+@utility glass {
+  background-color: var(--surface);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+
+/** Всплывающий слой: то же стекло, но плотнее и с более выраженной тенью. */
+@utility glass-float {
+  background-color: var(--surface-strong);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+
+/**
+ * Всплывашка поверх снимка: то же стекло дизайн-системы, но на плотной подложке.
+ * Сравни с `glass-over-imagery`: там полупрозрачный скрим, которого хватает панелям
+ * у краев области, здесь - гарантированная поверхность для слоя, всплывающего где угодно.
+ */
+@utility glass-popup {
+  background-color: var(--surface-popup);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+
+/**
+ * Тёмная подложка под стеклом, лежащим поверх спутникового снимка: нужна в обеих темах,
+ * иначе светлый текст панели теряется на светлых участках снимка.
+ */
+@utility glass-over-imagery {
+  background-image: linear-gradient(var(--surface-scrim), var(--surface-scrim));
+  background-blend-mode: normal;
+}
+
+/** Цифры фиксированной ширины: часы и числовые значения не дёргаются при смене цифр. */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}

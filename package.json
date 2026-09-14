@@ -1,0 +1,20 @@
+{
+  "name": "ra-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --if-present dev",
+    "build": "pnpm -r build",
+    "check": "biome check . && pnpm -r check",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.13",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}
