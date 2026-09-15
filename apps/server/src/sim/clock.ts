@@ -30,6 +30,10 @@ export interface ClockMetrics {
   stepsDone: number;
   /** Доля реального времени, уходящая на генерацию, 0..1 (скользящая оценка). */
   load: number;
+  /** Суммарное реальное время генерации в таймере, миллисекунды: для средней длительности шага. */
+  stepMsTotal: number;
+  /** Сколько шагов выполнено в таймере (без ручного `advance`). */
+  timedSteps: number;
 }
 
 export interface SimClockOptions {
@@ -51,6 +55,8 @@ export class SimClock {
   private maxLag = 0;
   private steps = 0;
   private loadValue = 0;
+  private stepMsTotal = 0;
+  private timedSteps = 0;
   private lastWarnAt = 0;
   private readonly onStep: (simTimeSec: number) => void;
   private readonly onBatch: ((simTimeSec: number) => void) | undefined;
@@ -107,6 +113,8 @@ export class SimClock {
       maxLagSeconds: this.maxLag,
       stepsDone: this.steps,
       load: this.loadValue,
+      stepMsTotal: this.stepMsTotal,
+      timedSteps: this.timedSteps,
     };
   }
 
@@ -133,6 +141,8 @@ export class SimClock {
     }
     this.debt -= steps;
     const elapsed = performance.now() - startedAt;
+    this.stepMsTotal += elapsed;
+    this.timedSteps += steps;
     // Скользящее среднее загрузки: доля периода таймера, занятая генерацией.
     this.loadValue = this.loadValue * 0.8 + (elapsed / TICK_INTERVAL_MS) * 0.2;
     // Шаги не пропускаются: неотработанный долг остается в debt и виден как отставание.

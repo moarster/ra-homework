@@ -46,6 +46,17 @@ export function VehicleList() {
   const fleet = useFleet(vehiclesQuery.data?.vehicles);
   useDictionaryFreshness(vehiclesQuery.data?.vehicles, vehiclesQuery.isFetching);
 
+  // Первая попытка не удалась, идут повторы: вместо вечного скелетона - объяснение.
+  if (vehiclesQuery.isPending && vehiclesQuery.failureCount > 0) {
+    return (
+      <EmptyState
+        icon={<ChartsIcon />}
+        title="Сервер недоступен"
+        description="Данные парка не получены. Подключение повторяется автоматически, перезагружать страницу не нужно."
+      />
+    );
+  }
+
   if (vehiclesQuery.isPending) {
     return (
       <div className="flex flex-col gap-2 p-3" aria-busy="true">

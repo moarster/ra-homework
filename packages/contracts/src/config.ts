@@ -111,8 +111,11 @@ export const CHAOS_LEVELS: ChaosLevelDef[] = [
   { id: 'CHAOS', name: 'Хаос', intensity: 15, allowOverlap: true },
 ];
 
-/** Допустимые скорости течения виртуального времени. */
-export const TIME_SCALES: number[] = [1, 2, 5, 10, 30, 60];
+/**
+ * Допустимые скорости течения виртуального времени. Согласованы с замером этапа 6
+ * (`BENCHMARK.md`): сервер держит x300 даже при 60 машинах, ограничение выше - клиент.
+ */
+export const TIME_SCALES: number[] = [1, 2, 5, 10, 30, 60, 120, 300];
 
 /** Нет данных дольше этого времени - серверная авария NO_DATA. */
 export const NO_DATA_ALARM_MINUTES = 40;

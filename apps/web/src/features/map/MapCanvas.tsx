@@ -66,13 +66,18 @@ type Popup =
 export interface MapCanvasProps {
   provider: MapProvider;
   data: MapData;
-  /** Подложка не доступна: рисуем схему карьера вместо снимка. */
-  schematic: boolean;
+  /**
+   * Что рисовать под машинами: ничего (живые тайлы), контур карьера поверх сохраненного
+   * снимка (автономный режим) или схему на сплошном фоне (нет ни тайлов, ни снимка).
+   */
+  fallback: MapFallback;
   /** Элемент карты, на котором слушается указатель. */
   interactionTarget: HTMLElement | null;
 }
 
-export function MapCanvas({ provider, data, schematic, interactionTarget }: MapCanvasProps) {
+export type MapFallback = 'none' | 'contour' | 'schematic';
+
+export function MapCanvas({ provider, data, fallback, interactionTarget }: MapCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const popupRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<OverlayRenderer | null>(null);
@@ -92,8 +97,8 @@ export function MapCanvas({ provider, data, schematic, interactionTarget }: MapC
    * Все, что нужно кадру, в одном ref. Цикл отрисовки не пересоздается при каждом изменении
    * данных - он просто читает свежее содержимое.
    */
-  const frameRef = useRef({ data, theme, selectedVehicleId, monitorTs, schematic, popup, hover });
-  frameRef.current = { data, theme, selectedVehicleId, monitorTs, schematic, popup, hover };
+  const frameRef = useRef({ data, theme, selectedVehicleId, monitorTs, fallback, popup, hover });
+  frameRef.current = { data, theme, selectedVehicleId, monitorTs, fallback, popup, hover };
 
   /* --------------------------------------------------------------- цикл отрисовки */
 
@@ -136,9 +141,9 @@ export function MapCanvas({ provider, data, schematic, interactionTarget }: MapC
       const palette = mapPalette(current.theme);
 
       ctx.clearRect(0, 0, width, height);
-      if (current.schematic) {
-        // Тайлов нет: вместо снимка под машинами рисуется схема карьера из справочника.
-        drawPitSchematic(ctx, projector, palette);
+      if (current.fallback !== 'none') {
+        // Тайлов нет: под машинами схема карьера из справочника - на снимке или на фоне.
+        drawPitSchematic(ctx, projector, palette, current.fallback === 'schematic');
       }
 
       const simState = useAppStore.getState().sim;

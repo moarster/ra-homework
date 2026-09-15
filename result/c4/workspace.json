@@ -1,0 +1,1043 @@
+{
+  "configuration" : { },
+  "description" : "Тестовое задание",
+  "documentation" : { },
+  "id" : 1,
+  "lastModifiedDate" : "2026-09-15T09:45:56Z",
+  "model" : {
+    "deploymentNodes" : [ {
+      "description" : "Пилот: 3 самосвала, горизонт - 60 единиц",
+      "environment" : "Production",
+      "id" : "32",
+      "infrastructureNodes" : [ {
+        "description" : "40 регистров: 1 Гц и 0,2 Гц по группам",
+        "environment" : "Production",
+        "id" : "33",
+        "name" : "Бортовой контроллер",
+        "properties" : {
+          "structurizr.dsl.identifier" : "controller"
+        },
+        "tags" : "Element,Infrastructure Node",
+        "technology" : "Modbus RTU, RS-485"
+      } ],
+      "instances" : "3",
+      "name" : "Карьерная техника",
+      "properties" : {
+        "structurizr.dsl.identifier" : "board"
+      },
+      "softwareSystemInstances" : [ {
+        "environment" : "Production",
+        "id" : "34",
+        "instanceId" : 1,
+        "properties" : {
+          "structurizr.dsl.identifier" : "gatewayInst"
+        },
+        "relationships" : [ {
+          "description" : "Батчи измерений раз в 5 с; догон после обрыва - отдельный топик с низким приоритетом",
+          "destinationId" : "42",
+          "id" : "43",
+          "linkedRelationshipId" : "14",
+          "sourceId" : "34",
+          "technology" : "MQTT over TLS (mTLS), QoS 1, TCP 8883"
+        }, {
+          "description" : "Опрос регистров",
+          "destinationId" : "33",
+          "id" : "76",
+          "sourceId" : "34",
+          "tags" : "Relationship,Телеметрия",
+          "technology" : "Modbus RTU"
+        }, {
+          "description" : "Батчи измерений",
+          "destinationId" : "36",
+          "id" : "77",
+          "sourceId" : "34",
+          "tags" : "Relationship,Телеметрия",
+          "technology" : "MQTT over TLS через LTE"
+        } ],
+        "softwareSystemId" : "3",
+        "tags" : "Software System Instance"
+      } ],
+      "tags" : "Element,Deployment Node,",
+      "technology" : "Бортовая сеть"
+    }, {
+      "description" : "Радиосеть и закрытый APN 10.250.0.0/24",
+      "environment" : "Production",
+      "id" : "35",
+      "infrastructureNodes" : [ {
+        "description" : "Адреса SIM-модулей шлюзов 10.250.0.0/24",
+        "environment" : "Production",
+        "id" : "36",
+        "name" : "Закрытый APN",
+        "properties" : {
+          "structurizr.dsl.identifier" : "apn"
+        },
+        "relationships" : [ {
+          "description" : "Туннель site-to-site",
+          "destinationId" : "39",
+          "id" : "78",
+          "sourceId" : "36",
+          "tags" : "Relationship,Телеметрия",
+          "technology" : "IPsec: UDP 500/4500, ESP"
+        } ],
+        "tags" : "Element,Infrastructure Node",
+        "technology" : "LTE, APN"
+      } ],
+      "instances" : "1",
+      "name" : "Оператор связи",
+      "properties" : {
+        "structurizr.dsl.identifier" : "operator"
+      },
+      "tags" : "Element,Deployment Node",
+      "technology" : "LTE"
+    }, {
+      "children" : [ {
+        "description" : "Стык IPsec 172.31.255.0/30",
+        "environment" : "Production",
+        "id" : "38",
+        "infrastructureNodes" : [ {
+          "description" : "Терминация IPsec, фильтрация между зонами (таблица правил в 2-network.md)",
+          "environment" : "Production",
+          "id" : "39",
+          "name" : "Межсетевой экран",
+          "properties" : {
+            "structurizr.dsl.identifier" : "fw"
+          },
+          "relationships" : [ {
+            "description" : "Разрешено только шлюзам (правило 3)",
+            "destinationId" : "42",
+            "id" : "79",
+            "sourceId" : "39",
+            "tags" : "Relationship,Телеметрия",
+            "technology" : "TCP 8883"
+          }, {
+            "description" : "Логи МЭ (правило 12)",
+            "destinationId" : "68",
+            "id" : "83",
+            "sourceId" : "39",
+            "tags" : "Relationship,ИБ",
+            "technology" : "syslog over TLS, TCP 6514"
+          } ],
+          "tags" : "Element,Infrastructure Node,Межсетевой экран",
+          "technology" : "172.31.255.2"
+        } ],
+        "instances" : "1",
+        "name" : "Периметр",
+        "properties" : {
+          "structurizr.dsl.identifier" : "perimeter"
+        },
+        "tags" : "Element,Deployment Node"
+      }, {
+        "children" : [ {
+          "containerInstances" : [ {
+            "containerId" : "8",
+            "environment" : "Production",
+            "id" : "42",
+            "instanceId" : 1,
+            "properties" : {
+              "structurizr.dsl.identifier" : "brokerInst"
+            },
+            "relationships" : [ {
+              "description" : "Журнал доставки, отказы mTLS/ACL, метрики",
+              "destinationId" : "56",
+              "id" : "57",
+              "linkedRelationshipId" : "24",
+              "sourceId" : "42",
+              "technology" : "OTLP/gRPC, TCP 4317"
+            } ],
+            "tags" : "Container Instance"
+          } ],
+          "description" : "VIP 10.20.10.10, локальный диск для сессий",
+          "environment" : "Production",
+          "id" : "41",
+          "instances" : "1",
+          "name" : "ВМ брокера",
+          "properties" : {
+            "structurizr.dsl.identifier" : "brokerVm"
+          },
+          "relationships" : [ {
+            "description" : "Синхронизация времени",
+            "destinationId" : "72",
+            "id" : "86",
+            "sourceId" : "41",
+            "tags" : "Relationship,Инфраструктура",
+            "technology" : "NTP, UDP 123"
+          } ],
+          "tags" : "Element,Deployment Node",
+          "technology" : "Linux"
+        } ],
+        "description" : "10.20.10.0/24, единственная зона, принимающая трафик от техники",
+        "environment" : "Production",
+        "id" : "40",
+        "instances" : "1",
+        "name" : "DMZ",
+        "properties" : {
+          "structurizr.dsl.identifier" : "dmz"
+        },
+        "tags" : "Element,Deployment Node,Зона DMZ"
+      }, {
+        "children" : [ {
+          "children" : [ {
+            "containerInstances" : [ {
+              "containerId" : "10",
+              "environment" : "Production",
+              "id" : "48",
+              "instanceId" : 1,
+              "properties" : {
+                "structurizr.dsl.identifier" : "ingestInst"
+              },
+              "relationships" : [ {
+                "description" : "Подписка на топики текущих данных и догона",
+                "destinationId" : "42",
+                "id" : "49",
+                "linkedRelationshipId" : "16",
+                "sourceId" : "48",
+                "technology" : "MQTT over TLS, TCP 8883"
+              }, {
+                "description" : "Логи обработки и ошибок нормализации, метрики задержки",
+                "destinationId" : "56",
+                "id" : "58",
+                "linkedRelationshipId" : "25",
+                "sourceId" : "48",
+                "technology" : "OTLP/gRPC, TCP 4317"
+              }, {
+                "description" : "Идемпотентная пакетная запись",
+                "destinationId" : "61",
+                "id" : "62",
+                "linkedRelationshipId" : "17",
+                "sourceId" : "48",
+                "technology" : "SQL, TCP 5432"
+              } ],
+              "tags" : "Container Instance"
+            } ],
+            "description" : "Без состояния, масштабируется репликами",
+            "environment" : "Production",
+            "id" : "47",
+            "instances" : "2",
+            "name" : "ingest",
+            "properties" : {
+              "structurizr.dsl.identifier" : "ingestPod"
+            },
+            "tags" : "Element,Deployment Node,",
+            "technology" : "Deployment"
+          }, {
+            "containerInstances" : [ {
+              "containerId" : "11",
+              "environment" : "Production",
+              "id" : "51",
+              "instanceId" : 1,
+              "properties" : {
+                "structurizr.dsl.identifier" : "apiInst"
+              },
+              "relationships" : [ {
+                "description" : "Журнал запросов, вход и отказ в доступе, метрики",
+                "destinationId" : "56",
+                "id" : "59",
+                "linkedRelationshipId" : "26",
+                "sourceId" : "51",
+                "technology" : "OTLP/gRPC, TCP 4317"
+              }, {
+                "description" : "Выборки рядов и агрегатов",
+                "destinationId" : "61",
+                "id" : "63",
+                "linkedRelationshipId" : "18",
+                "sourceId" : "51",
+                "technology" : "SQL, TCP 5432"
+              }, {
+                "description" : "Проверка учетных данных и членства в группах",
+                "destinationId" : "66",
+                "id" : "67",
+                "linkedRelationshipId" : "22",
+                "sourceId" : "51",
+                "technology" : "LDAPS, TCP 636"
+              } ],
+              "tags" : "Container Instance"
+            } ],
+            "description" : "Без состояния, PodDisruptionBudget",
+            "environment" : "Production",
+            "id" : "50",
+            "instances" : "2",
+            "name" : "api",
+            "properties" : {
+              "structurizr.dsl.identifier" : "apiPod"
+            },
+            "tags" : "Element,Deployment Node,",
+            "technology" : "Deployment"
+          }, {
+            "containerInstances" : [ {
+              "containerId" : "12",
+              "environment" : "Production",
+              "id" : "53",
+              "instanceId" : 1,
+              "properties" : {
+                "structurizr.dsl.identifier" : "webInst"
+              },
+              "relationships" : [ {
+                "description" : "Запросы дашборда и поток реального времени 1-4 Гц",
+                "destinationId" : "51",
+                "id" : "54",
+                "linkedRelationshipId" : "19",
+                "sourceId" : "53",
+                "technology" : "HTTPS/JSON, WebSocket"
+              } ],
+              "tags" : "Container Instance"
+            } ],
+            "description" : "Статика SPA",
+            "environment" : "Production",
+            "id" : "52",
+            "instances" : "2",
+            "name" : "web",
+            "properties" : {
+              "structurizr.dsl.identifier" : "webPod"
+            },
+            "tags" : "Element,Deployment Node,",
+            "technology" : "Deployment, nginx"
+          }, {
+            "containerInstances" : [ {
+              "containerId" : "13",
+              "environment" : "Production",
+              "id" : "56",
+              "instanceId" : 1,
+              "properties" : {
+                "structurizr.dsl.identifier" : "loggerInst"
+              },
+              "relationships" : [ {
+                "description" : "События ИБ: вход/отказ, отклонение подключения шлюза",
+                "destinationId" : "68",
+                "id" : "69",
+                "linkedRelationshipId" : "27",
+                "sourceId" : "56",
+                "technology" : "syslog/CEF over TLS, TCP 6514"
+              }, {
+                "description" : "Операционные логи и метрики",
+                "destinationId" : "70",
+                "id" : "71",
+                "linkedRelationshipId" : "29",
+                "sourceId" : "56",
+                "technology" : "OTLP/gRPC over TLS, TCP 4317"
+              } ],
+              "tags" : "Container Instance"
+            } ],
+            "description" : "Дисковая очередь на PVC",
+            "environment" : "Production",
+            "id" : "55",
+            "instances" : "1",
+            "name" : "logger",
+            "properties" : {
+              "structurizr.dsl.identifier" : "loggerPod"
+            },
+            "tags" : "Element,Deployment Node",
+            "technology" : "StatefulSet"
+          } ],
+          "description" : "Собственный кластер площадки (допущение 10)",
+          "environment" : "Production",
+          "id" : "45",
+          "infrastructureNodes" : [ {
+            "description" : "VIP веб-интерфейса, терминация TLS",
+            "environment" : "Production",
+            "id" : "46",
+            "name" : "Ingress-контроллер",
+            "properties" : {
+              "structurizr.dsl.identifier" : "ingress"
+            },
+            "relationships" : [ {
+              "description" : "Статика SPA",
+              "destinationId" : "53",
+              "id" : "81",
+              "sourceId" : "46",
+              "tags" : "Relationship",
+              "technology" : "HTTP"
+            }, {
+              "description" : "REST и WebSocket",
+              "destinationId" : "51",
+              "id" : "82",
+              "sourceId" : "46",
+              "tags" : "Relationship",
+              "technology" : "HTTP"
+            } ],
+            "tags" : "Element,Infrastructure Node",
+            "technology" : "Ingress, TCP 443"
+          } ],
+          "instances" : "1",
+          "name" : "Kubernetes",
+          "properties" : {
+            "structurizr.dsl.identifier" : "k8s"
+          },
+          "relationships" : [ {
+            "description" : "Синхронизация времени (правило 9)",
+            "destinationId" : "72",
+            "id" : "85",
+            "sourceId" : "45",
+            "tags" : "Relationship,Инфраструктура",
+            "technology" : "NTP, UDP 123"
+          } ],
+          "tags" : "Element,Deployment Node,Kubernetes",
+          "technology" : "Kubernetes"
+        }, {
+          "containerInstances" : [ {
+            "containerId" : "9",
+            "environment" : "Production",
+            "id" : "61",
+            "instanceId" : 1,
+            "properties" : {
+              "structurizr.dsl.identifier" : "tsdbInst"
+            },
+            "tags" : "Container Instance"
+          } ],
+          "description" : "10.20.20.11, выделенные диски, не под кластера",
+          "environment" : "Production",
+          "id" : "60",
+          "instances" : "1",
+          "name" : "ВМ СУБД",
+          "properties" : {
+            "structurizr.dsl.identifier" : "dbVm"
+          },
+          "relationships" : [ {
+            "description" : "Резервное копирование, архив WAL",
+            "destinationId" : "64",
+            "id" : "84",
+            "sourceId" : "60",
+            "tags" : "Relationship,Инфраструктура",
+            "technology" : "pgBackRest"
+          }, {
+            "description" : "Синхронизация времени",
+            "destinationId" : "72",
+            "id" : "87",
+            "sourceId" : "60",
+            "tags" : "Relationship,Инфраструктура",
+            "technology" : "NTP, UDP 123"
+          } ],
+          "tags" : "Element,Deployment Node",
+          "technology" : "Linux"
+        } ],
+        "description" : "10.20.20.0/24, обработка и данные",
+        "environment" : "Production",
+        "id" : "44",
+        "infrastructureNodes" : [ {
+          "description" : "Полные копии и архив WAL СУБД, проверка восстановления в ПМИ",
+          "environment" : "Production",
+          "id" : "64",
+          "name" : "Хранилище резервных копий",
+          "properties" : {
+            "structurizr.dsl.identifier" : "backup"
+          },
+          "tags" : "Element,Infrastructure Node",
+          "technology" : "pgBackRest"
+        } ],
+        "instances" : "1",
+        "name" : "COMP",
+        "properties" : {
+          "structurizr.dsl.identifier" : "comp"
+        },
+        "tags" : "Element,Deployment Node"
+      }, {
+        "description" : "10.40.10.0/24, существующие сервисы предприятия",
+        "environment" : "Production",
+        "id" : "65",
+        "infrastructureNodes" : [ {
+          "description" : "10.40.10.10",
+          "environment" : "Production",
+          "id" : "72",
+          "name" : "Служба точного времени",
+          "properties" : {
+            "structurizr.dsl.identifier" : "ntp"
+          },
+          "tags" : "Element,Infrastructure Node",
+          "technology" : "NTP"
+        } ],
+        "instances" : "1",
+        "name" : "CORP",
+        "properties" : {
+          "structurizr.dsl.identifier" : "corp"
+        },
+        "softwareSystemInstances" : [ {
+          "environment" : "Production",
+          "id" : "66",
+          "instanceId" : 1,
+          "properties" : {
+            "structurizr.dsl.identifier" : "adInst"
+          },
+          "softwareSystemId" : "4",
+          "tags" : "Software System Instance"
+        }, {
+          "environment" : "Production",
+          "id" : "68",
+          "instanceId" : 1,
+          "properties" : {
+            "structurizr.dsl.identifier" : "siemInst"
+          },
+          "softwareSystemId" : "5",
+          "tags" : "Software System Instance"
+        }, {
+          "environment" : "Production",
+          "id" : "70",
+          "instanceId" : 1,
+          "properties" : {
+            "structurizr.dsl.identifier" : "signozInst"
+          },
+          "softwareSystemId" : "6",
+          "tags" : "Software System Instance"
+        } ],
+        "tags" : "Element,Deployment Node"
+      }, {
+        "children" : [ {
+          "environment" : "Production",
+          "id" : "74",
+          "infrastructureNodes" : [ {
+            "environment" : "Production",
+            "id" : "75",
+            "name" : "Браузер",
+            "properties" : {
+              "structurizr.dsl.identifier" : "browser"
+            },
+            "relationships" : [ {
+              "description" : "Дашборд (правило 11)",
+              "destinationId" : "46",
+              "id" : "80",
+              "sourceId" : "75",
+              "tags" : "Relationship",
+              "technology" : "HTTPS, TCP 443"
+            } ],
+            "tags" : "Element,Infrastructure Node",
+            "technology" : "Chromium"
+          } ],
+          "instances" : "1",
+          "name" : "АРМ механика",
+          "properties" : {
+            "structurizr.dsl.identifier" : "arm"
+          },
+          "tags" : "Element,Deployment Node",
+          "technology" : "Windows"
+        } ],
+        "description" : "10.50.10.0/24, рабочие места службы главного механика",
+        "environment" : "Production",
+        "id" : "73",
+        "instances" : "1",
+        "name" : "USER",
+        "properties" : {
+          "structurizr.dsl.identifier" : "user"
+        },
+        "tags" : "Element,Deployment Node"
+      } ],
+      "description" : "Собственная инфраструктура комбината",
+      "environment" : "Production",
+      "id" : "37",
+      "instances" : "1",
+      "name" : "Площадка ГОК",
+      "properties" : {
+        "structurizr.dsl.identifier" : "site"
+      },
+      "tags" : "Element,Deployment Node"
+    } ],
+    "people" : [ {
+      "description" : "Служба главного механика, смотрит состояние парка",
+      "id" : "1",
+      "name" : "Механик",
+      "properties" : {
+        "structurizr.dsl.identifier" : "mechanic"
+      },
+      "relationships" : [ {
+        "description" : "Просмотр состояния парка",
+        "destinationId" : "12",
+        "id" : "20",
+        "sourceId" : "1",
+        "tags" : "Relationship",
+        "technology" : "HTTPS, TCP 443"
+      }, {
+        "description" : "Просмотр состояния парка",
+        "destinationId" : "7",
+        "id" : "21",
+        "linkedRelationshipId" : "20",
+        "sourceId" : "1",
+        "technology" : "HTTPS, TCP 443"
+      } ],
+      "tags" : "Element,Person"
+    }, {
+      "description" : "DevOps/SRE, дежурство в рабочее время 7:00-23:00",
+      "id" : "2",
+      "name" : "Инженер эксплуатации",
+      "properties" : {
+        "structurizr.dsl.identifier" : "opsEngineer"
+      },
+      "relationships" : [ {
+        "description" : "Мониторинг, разбор инцидентов, оповещения",
+        "destinationId" : "6",
+        "id" : "31",
+        "sourceId" : "2",
+        "tags" : "Relationship",
+        "technology" : "HTTPS"
+      } ],
+      "tags" : "Element,Person"
+    } ],
+    "softwareSystems" : [ {
+      "description" : "На борту машины: опрос контроллера по Modbus, энергонезависимый буфер 1 ГБ, метка времени от ГНСС",
+      "documentation" : { },
+      "id" : "3",
+      "name" : "Телематический шлюз",
+      "properties" : {
+        "structurizr.dsl.identifier" : "gateway"
+      },
+      "relationships" : [ {
+        "description" : "Батчи измерений раз в 5 с; догон после обрыва - отдельный топик с низким приоритетом",
+        "destinationId" : "8",
+        "id" : "14",
+        "sourceId" : "3",
+        "tags" : "Relationship,Телеметрия",
+        "technology" : "MQTT over TLS (mTLS), QoS 1, TCP 8883"
+      }, {
+        "description" : "Батчи измерений раз в 5 с; догон после обрыва - отдельный топик с низким приоритетом",
+        "destinationId" : "7",
+        "id" : "15",
+        "linkedRelationshipId" : "14",
+        "sourceId" : "3",
+        "technology" : "MQTT over TLS (mTLS), QoS 1, TCP 8883"
+      } ],
+      "tags" : "Element,Software System,External,Устройство"
+    }, {
+      "description" : "Корпоративный каталог пользователей и групп",
+      "documentation" : { },
+      "id" : "4",
+      "name" : "Active Directory",
+      "properties" : {
+        "structurizr.dsl.identifier" : "ad"
+      },
+      "tags" : "Element,Software System,External"
+    }, {
+      "description" : "Корпоративная система ИБ: корреляция событий безопасности",
+      "documentation" : { },
+      "id" : "5",
+      "name" : "SIEM",
+      "properties" : {
+        "structurizr.dsl.identifier" : "siem"
+      },
+      "tags" : "Element,Software System,External,ИБ"
+    }, {
+      "description" : "Корпоративная платформа наблюдаемости: хранение операционных логов и метрик, дашборды, оповещения",
+      "documentation" : { },
+      "id" : "6",
+      "name" : "SigNoz",
+      "properties" : {
+        "structurizr.dsl.identifier" : "signoz"
+      },
+      "tags" : "Element,Software System,External,Наблюдаемость"
+    }, {
+      "containers" : [ {
+        "description" : "Терминация mTLS, проверка источника, ACL по топикам, постоянные сессии. Состояние: сессии и неподтвержденные сообщения на диске ВМ",
+        "documentation" : { },
+        "group" : "Вне Kubernetes",
+        "id" : "8",
+        "name" : "Брокер MQTT",
+        "properties" : {
+          "structurizr.dsl.identifier" : "broker"
+        },
+        "relationships" : [ {
+          "description" : "Журнал доставки, отказы mTLS/ACL, метрики",
+          "destinationId" : "13",
+          "id" : "24",
+          "sourceId" : "8",
+          "tags" : "Relationship,Наблюдаемость",
+          "technology" : "OTLP/gRPC, TCP 4317"
+        } ],
+        "tags" : "Element,Container,С состоянием,Очередь",
+        "technology" : "EMQX"
+      }, {
+        "description" : "Измерения 12 мес., сжатие, непрерывные агрегаты. Состояние: вся телеметрия; отдельная ВМ, резервные копии и архив WAL",
+        "documentation" : { },
+        "group" : "Вне Kubernetes",
+        "id" : "9",
+        "name" : "Хранилище временных рядов",
+        "properties" : {
+          "structurizr.dsl.identifier" : "tsdb"
+        },
+        "tags" : "Element,Container,С состоянием,База данных",
+        "technology" : "PostgreSQL + TimescaleDB"
+      }, {
+        "description" : "Разбор батчей, нормализация, дедупликация по (машина, параметр, время), пакетная запись",
+        "documentation" : { },
+        "group" : "Kubernetes",
+        "id" : "10",
+        "name" : "Сервис приема",
+        "properties" : {
+          "structurizr.dsl.identifier" : "ingest"
+        },
+        "relationships" : [ {
+          "description" : "Подписка на топики текущих данных и догона",
+          "destinationId" : "8",
+          "id" : "16",
+          "sourceId" : "10",
+          "tags" : "Relationship,Телеметрия",
+          "technology" : "MQTT over TLS, TCP 8883"
+        }, {
+          "description" : "Идемпотентная пакетная запись",
+          "destinationId" : "9",
+          "id" : "17",
+          "sourceId" : "10",
+          "tags" : "Relationship,Телеметрия",
+          "technology" : "SQL, TCP 5432"
+        }, {
+          "description" : "Логи обработки и ошибок нормализации, метрики задержки",
+          "destinationId" : "13",
+          "id" : "25",
+          "sourceId" : "10",
+          "tags" : "Relationship,Наблюдаемость",
+          "technology" : "OTLP/gRPC, TCP 4317"
+        } ],
+        "tags" : "Element,Container",
+        "technology" : "Go/Java"
+      }, {
+        "description" : "REST и поток реального времени, аутентификация через AD, роли по группам AD",
+        "documentation" : { },
+        "group" : "Kubernetes",
+        "id" : "11",
+        "name" : "Сервис API",
+        "properties" : {
+          "structurizr.dsl.identifier" : "api"
+        },
+        "relationships" : [ {
+          "description" : "Выборки рядов и агрегатов",
+          "destinationId" : "9",
+          "id" : "18",
+          "sourceId" : "11",
+          "tags" : "Relationship",
+          "technology" : "SQL, TCP 5432"
+        }, {
+          "description" : "Проверка учетных данных и членства в группах",
+          "destinationId" : "4",
+          "id" : "22",
+          "sourceId" : "11",
+          "tags" : "Relationship,ИБ",
+          "technology" : "LDAPS, TCP 636"
+        }, {
+          "description" : "Журнал запросов, вход и отказ в доступе, метрики",
+          "destinationId" : "13",
+          "id" : "26",
+          "sourceId" : "11",
+          "tags" : "Relationship,Наблюдаемость",
+          "technology" : "OTLP/gRPC, TCP 4317"
+        } ],
+        "tags" : "Element,Container",
+        "technology" : "Go/Java"
+      }, {
+        "description" : "Дашборд: парк, карточка машины, графики, журнал аварий. Статика из кластера, исполняется в браузере",
+        "documentation" : { },
+        "group" : "Kubernetes",
+        "id" : "12",
+        "name" : "Веб-интерфейс",
+        "properties" : {
+          "structurizr.dsl.identifier" : "web"
+        },
+        "relationships" : [ {
+          "description" : "Запросы дашборда и поток реального времени 1-4 Гц",
+          "destinationId" : "11",
+          "id" : "19",
+          "sourceId" : "12",
+          "tags" : "Relationship",
+          "technology" : "HTTPS/JSON, WebSocket"
+        } ],
+        "tags" : "Element,Container,Браузер",
+        "technology" : "React SPA"
+      }, {
+        "description" : "Прием логов и метрик компонентов, отбор событий ИБ, маршрутизация: ИБ -> SIEM, остальное -> SigNoz. Состояние: дисковая очередь на время недоступности приемников",
+        "documentation" : { },
+        "group" : "Kubernetes",
+        "id" : "13",
+        "name" : "Сервис логирования",
+        "properties" : {
+          "structurizr.dsl.identifier" : "logger"
+        },
+        "relationships" : [ {
+          "description" : "События ИБ: вход/отказ, отклонение подключения шлюза",
+          "destinationId" : "5",
+          "id" : "27",
+          "sourceId" : "13",
+          "tags" : "Relationship,ИБ",
+          "technology" : "syslog/CEF over TLS, TCP 6514"
+        }, {
+          "description" : "Операционные логи и метрики",
+          "destinationId" : "6",
+          "id" : "29",
+          "sourceId" : "13",
+          "tags" : "Relationship,Наблюдаемость",
+          "technology" : "OTLP/gRPC over TLS, TCP 4317"
+        } ],
+        "tags" : "Element,Container,С состоянием",
+        "technology" : "OpenTelemetry Collector"
+      } ],
+      "description" : "Прием, хранение и отображение технической телеметрии парка",
+      "documentation" : { },
+      "id" : "7",
+      "name" : "Система телеметрии",
+      "properties" : {
+        "structurizr.dsl.identifier" : "tele"
+      },
+      "relationships" : [ {
+        "description" : "Проверка учетных данных и членства в группах",
+        "destinationId" : "4",
+        "id" : "23",
+        "linkedRelationshipId" : "22",
+        "sourceId" : "7",
+        "technology" : "LDAPS, TCP 636"
+      }, {
+        "description" : "События ИБ: вход/отказ, отклонение подключения шлюза",
+        "destinationId" : "5",
+        "id" : "28",
+        "linkedRelationshipId" : "27",
+        "sourceId" : "7",
+        "technology" : "syslog/CEF over TLS, TCP 6514"
+      }, {
+        "description" : "Операционные логи и метрики",
+        "destinationId" : "6",
+        "id" : "30",
+        "linkedRelationshipId" : "29",
+        "sourceId" : "7",
+        "technology" : "OTLP/gRPC over TLS, TCP 4317"
+      } ],
+      "tags" : "Element,Software System"
+    } ]
+  },
+  "name" : "Телеметрия карьерной техники",
+  "properties" : {
+    "structurizr.inspection.error" : "44",
+    "structurizr.inspection.info" : "0",
+    "structurizr.inspection.ignore" : "0",
+    "structurizr.inspection.warning" : "0"
+  },
+  "views" : {
+    "configuration" : {
+      "styles" : {
+        "elements" : [ {
+          "background" : "#0e8c7e",
+          "tag" : "Container"
+        }, {
+          "background" : "#f4f7f7",
+          "color" : "#10201f",
+          "stroke" : "#475a58",
+          "tag" : "Deployment Node"
+        }, {
+          "color" : "#ffffff",
+          "stroke" : "#0b7166",
+          "strokeWidth" : 2,
+          "tag" : "Element"
+        }, {
+          "background" : "#5f6f6d",
+          "stroke" : "#475a58",
+          "tag" : "External"
+        }, {
+          "border" : "Dashed",
+          "color" : "#0b7166",
+          "stroke" : "#0b7166",
+          "strokeWidth" : 2,
+          "tag" : "Group"
+        }, {
+          "background" : "#dde5e5",
+          "color" : "#10201f",
+          "stroke" : "#475a58",
+          "tag" : "Infrastructure Node"
+        }, {
+          "stroke" : "#12a594",
+          "strokeWidth" : 4,
+          "tag" : "Kubernetes"
+        }, {
+          "background" : "#0b7166",
+          "shape" : "Person",
+          "stroke" : "#0b7166",
+          "tag" : "Person"
+        }, {
+          "background" : "#0b7166",
+          "tag" : "Software System"
+        }, {
+          "shape" : "Cylinder",
+          "tag" : "База данных"
+        }, {
+          "shape" : "WebBrowser",
+          "tag" : "Браузер"
+        }, {
+          "border" : "Dashed",
+          "stroke" : "#c63d26",
+          "strokeWidth" : 4,
+          "tag" : "Зона DMZ"
+        }, {
+          "background" : "#c63d26",
+          "color" : "#ffffff",
+          "stroke" : "#c63d26",
+          "tag" : "Межсетевой экран"
+        }, {
+          "shape" : "Pipe",
+          "tag" : "Очередь"
+        }, {
+          "stroke" : "#e0492f",
+          "strokeWidth" : 8,
+          "tag" : "С состоянием"
+        }, {
+          "shape" : "Box",
+          "tag" : "Устройство"
+        } ],
+        "relationships" : [ {
+          "color" : "#475a58",
+          "tag" : "Relationship",
+          "thickness" : 2
+        }, {
+          "color" : "#c63d26",
+          "tag" : "ИБ",
+          "thickness" : 3
+        }, {
+          "color" : "#7b848b",
+          "style" : "Dotted",
+          "tag" : "Инфраструктура"
+        }, {
+          "color" : "#7b848b",
+          "style" : "Dashed",
+          "tag" : "Наблюдаемость"
+        }, {
+          "color" : "#0b7166",
+          "tag" : "Телеметрия",
+          "thickness" : 4
+        } ]
+      },
+      "terminology" : { }
+    },
+    "containerViews" : [ {
+      "automaticLayout" : {
+        "edgeSeparation" : 50,
+        "nodeSeparation" : 50,
+        "rankDirection" : "LeftRight",
+        "rankSeparation" : 100,
+        "vertices" : true
+      },
+      "description" : "Компоненты решения: что в Kubernetes, что вне его, компоненты с состоянием",
+      "elements" : [ {
+        "id" : "1",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "3",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "4",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "5",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "6",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "8",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "9",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "10",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "11",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "12",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "13",
+        "x" : 0,
+        "y" : 0
+      } ],
+      "externalSoftwareSystemBoundariesVisible" : false,
+      "key" : "containers",
+      "name" : "Container View: Система телеметрии",
+      "order" : 2,
+      "relationships" : [ {
+        "id" : "14"
+      }, {
+        "id" : "16"
+      }, {
+        "id" : "17"
+      }, {
+        "id" : "18"
+      }, {
+        "id" : "19"
+      }, {
+        "id" : "20"
+      }, {
+        "id" : "22"
+      }, {
+        "id" : "24"
+      }, {
+        "id" : "25"
+      }, {
+        "id" : "26"
+      }, {
+        "id" : "27"
+      }, {
+        "id" : "29"
+      } ],
+      "softwareSystemId" : "7",
+      "title" : "Контейнеры"
+    } ],
+    "systemContextViews" : [ {
+      "automaticLayout" : {
+        "edgeSeparation" : 50,
+        "nodeSeparation" : 50,
+        "rankDirection" : "LeftRight",
+        "rankSeparation" : 100,
+        "vertices" : true
+      },
+      "description" : "Система телеметрии и ее окружение",
+      "elements" : [ {
+        "id" : "1",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "2",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "3",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "4",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "5",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "6",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "7",
+        "x" : 0,
+        "y" : 0
+      } ],
+      "enterpriseBoundaryVisible" : true,
+      "key" : "context",
+      "name" : "System Context View: Система телеметрии",
+      "order" : 1,
+      "relationships" : [ {
+        "id" : "15"
+      }, {
+        "id" : "21"
+      }, {
+        "id" : "23"
+      }, {
+        "id" : "28"
+      }, {
+        "id" : "30"
+      }, {
+        "id" : "31"
+      } ],
+      "softwareSystemId" : "7",
+      "title" : "Контекст"
+    } ]
+  }
+}

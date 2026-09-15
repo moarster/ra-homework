@@ -24,7 +24,11 @@ const env: ServerEnv = {
   seed: 17,
   vehicleCount: MIN_VEHICLES,
   historySeconds: 1800,
+  timeScale: 1,
+  chaos: 'NORMAL',
   corsOrigins: ['http://localhost:5173'],
+  staticDir: null,
+  benchmark: false,
 };
 
 let app: FastifyInstance;

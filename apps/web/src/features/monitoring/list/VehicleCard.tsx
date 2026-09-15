@@ -21,7 +21,7 @@ import {
 import { memo } from 'react';
 import { formatDuration, formatShortTime } from '@/shared/format';
 import { useAppStore, useTrackedMetrics } from '@/shared/store';
-import { cx, MetricIcon, severityClasses, ValueDisplay } from '@/shared/ui';
+import { cx, MetricIcon, SeverityMark, severityClasses, ValueDisplay } from '@/shared/ui';
 import { isGrey } from '../data/fleet.js';
 import { resolveModel, severitiesOf, snapshotValues } from '../data/snapshot-values.js';
 import { ChevronRightIcon } from '../icons.js';
@@ -65,6 +65,8 @@ export const VehicleCard = memo(function VehicleCard({ vehicle }: { vehicle: Api
             <span className="tabular text-[22px] leading-none font-semibold">
               {vehicle.sideNumber}
             </span>
+            {/* Форма дублирует цвет полосы: статус читается и без различения цветов. */}
+            <SeverityMark severity={severity} className="self-center" />
           </div>
           <div className="mt-1 truncate text-[11px] text-fg-muted">
             {model?.name ?? vehicle.modelId}

@@ -1,6 +1,6 @@
 /**
  * Сборка приложения Fastify: логирование, CORS для dev-сервера Vite, обработчик ошибок,
- * маршруты API и websocket.
+ * маршруты API, websocket и, в собранном образе, статика фронтенда.
  */
 
 import fastifyCors from '@fastify/cors';
@@ -10,6 +10,7 @@ import type { ServerEnv } from './env.js';
 import { registerErrorHandler } from './errors.js';
 import { registerRoutes } from './routes/index.js';
 import { SimEngine } from './sim/engine.js';
+import { registerStatic } from './static.js';
 import { registerWebsocket, WsHub } from './ws/hub.js';
 
 export interface BuiltApp {
@@ -35,6 +36,9 @@ export async function buildApp(env: ServerEnv): Promise<BuiltApp> {
     seed: env.seed,
     vehicleCount: env.vehicleCount,
     historySeconds: env.historySeconds,
+    timeScale: env.timeScale,
+    chaos: env.chaos,
+    anyTimeScale: env.benchmark,
     log: (message, details) => {
       app.log.info(details ?? {}, message);
     },
@@ -48,8 +52,11 @@ export async function buildApp(env: ServerEnv): Promise<BuiltApp> {
   await app.register(fastifyWebsocket);
 
   registerErrorHandler(app);
-  registerRoutes(app, { engine });
+  registerRoutes(app, { engine, anyTimeScale: env.benchmark });
   registerWebsocket(app, hub);
+  if (env.staticDir !== null) {
+    registerStatic(app, env.staticDir);
+  }
 
   engine.start();
   app.log.info({ vehicles: engine.store.count, simTime: engine.simTime }, 'симуляция запущена');

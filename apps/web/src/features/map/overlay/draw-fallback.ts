@@ -1,9 +1,10 @@
 /**
  * Схема карьера на случай, когда тайлы недоступны.
  *
- * Демонстрация не должна разваливаться без интернета (раздел 1 этапа): вместо пустого серого
- * поля рисуется контур карьера из `pit.ts` - границы области, технологические маршруты и зоны.
- * Машины и треки при этом продолжают ездить: они берут данные с сервера, а не из тайлов.
+ * Демонстрация не должна разваливаться без интернета (раздел 2 этапа 6): поверх сохраненного
+ * снимка рисуется контур карьера из `pit.ts` - границы области, технологические маршруты и
+ * зоны. Если нет и снимка (тайлы выбраны вручную и не грузятся), та же схема рисуется на
+ * сплошном фоне. Машины и треки продолжают ездить: они берут данные с сервера, а не из тайлов.
  */
 
 import { PIT_BOUNDS, PIT_ROUTES, PIT_ZONES, ROUTE_IDS } from '@ra/contracts';
@@ -12,17 +13,27 @@ import type { MapPalette } from './palette.js';
 
 const point: ScreenPoint = { x: 0, y: 0 };
 
+/**
+ * Цвет контура поверх снимка. Снимок темный в обеих темах, поэтому цвет не тематический:
+ * серый токен темы на спутнике не читается.
+ */
+const CONTOUR_OVER_IMAGERY = 'rgba(255, 255, 255, 0.9)';
+
 export function drawPitSchematic(
   ctx: CanvasRenderingContext2D,
   projector: MapProjector,
   palette: MapPalette,
+  /** true - сплошной фон вместо снимка; false - только контур поверх сохраненного снимка. */
+  backdrop: boolean,
 ): void {
   ctx.save();
-  ctx.fillStyle = palette.backdrop;
-  ctx.fillRect(0, 0, projector.width, projector.height);
+  if (backdrop) {
+    ctx.fillStyle = palette.backdrop;
+    ctx.fillRect(0, 0, projector.width, projector.height);
+  }
 
-  ctx.globalAlpha = 0.55;
-  ctx.strokeStyle = palette.outline;
+  ctx.globalAlpha = backdrop ? 0.55 : 0.5;
+  ctx.strokeStyle = backdrop ? palette.outline : CONTOUR_OVER_IMAGERY;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
 

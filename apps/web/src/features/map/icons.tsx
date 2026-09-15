@@ -45,6 +45,16 @@ export function OverviewIcon() {
   );
 }
 
+/** Автономный режим карты: облако перечеркнуто, подложка локальная. */
+export function OfflineMapIcon() {
+  return (
+    <svg {...COMMON} aria-hidden="true" className="size-4">
+      <path d="M7 18h10.5a3.5 3.5 0 0 0 .6-6.95A6 6 0 0 0 6.6 9.1 4.5 4.5 0 0 0 7 18Z" />
+      <path d="M4 4l16 16" />
+    </svg>
+  );
+}
+
 /** Нет связи с подложкой. */
 export function NoImageryIcon() {
   return (

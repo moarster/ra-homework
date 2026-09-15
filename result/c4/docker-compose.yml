@@ -1,0 +1,19 @@
+# Локальный Structurizr Lite для result/3-architecture.dsl
+# Запуск из папки result: docker compose up -> http://localhost:8080
+# Порт можно сменить: STRUCTURIZR_PORT=8090 docker compose up
+name: ra-structurizr
+
+services:
+  structurizr:
+    image: structurizr/structurizr:latest
+    container_name: ra-structurizr
+    # Образ по умолчанию работает под uid 65532, а папка принадлежит хостовому пользователю:
+    # без этого Structurizr не может писать в /usr/local/structurizr
+    user: "1000:1000"
+    ports:
+      - "${STRUCTURIZR_PORT:-8080}:8080"
+    volumes:
+      - ./:/usr/local/structurizr
+    restart: unless-stopped
+    command:
+      - local

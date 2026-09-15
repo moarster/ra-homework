@@ -8,7 +8,7 @@
  */
 
 import { APP_CONFIG } from '@ra/contracts';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   useAppStore,
   usePeriodId,
@@ -20,9 +20,9 @@ import { EmptyState, Panel } from '@/shared/ui';
 import { MapControls } from './controls/MapControls.js';
 import { TailSlider } from './controls/TailSlider.js';
 import { useMapData } from './data/use-map-data.js';
-import { NoImageryIcon, PitIcon } from './icons.js';
-import { MapCanvas } from './MapCanvas.js';
-import { MapLibreProvider } from './provider/maplibre-provider.js';
+import { NoImageryIcon, OfflineMapIcon, PitIcon } from './icons.js';
+import { MapCanvas, type MapFallback } from './MapCanvas.js';
+import { IMAGERY_ATTRIBUTION, MapLibreProvider } from './provider/maplibre-provider.js';
 import type { LatLonBounds, MapProvider, MapTileStatus } from './provider/types.js';
 import { takeSelectionFromMap } from './selection-origin.js';
 
@@ -61,6 +61,16 @@ export function MapPane() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   /** Тот же элемент, но как состояние: оверлею он нужен для подписки на указатель. */
   const [mapElement, setMapElement] = useState<HTMLDivElement | null>(null);
+  /*
+   * Ref-колбэк обязан быть стабильным. Встроенная стрелка - новая функция на каждый рендер:
+   * React отцепляет старый ref (null) и цепляет новый (узел), оба вызова меняют состояние,
+   * и рендер запускает следующий. При 60 машинах на x300 область перерисовывается так часто,
+   * что это упиралось в "Maximum update depth exceeded" и карта падала.
+   */
+  const attachContainer = useCallback((node: HTMLDivElement | null) => {
+    containerRef.current = node;
+    setMapElement(node);
+  }, []);
   const [provider, setProvider] = useState<MapProvider | null>(null);
   const [tileStatus, setTileStatus] = useState<MapTileStatus>('loading');
 
@@ -140,7 +150,25 @@ export function MapPane() {
     }
   }, [provider, selectedVehicleId, data.tracksReady]);
 
-  const schematic = tileStatus === 'failed';
+  /* ------------------------------------------------------------ подложка и автономный режим */
+
+  /**
+   * Выбор подложки: `auto` переключается на сохраненный снимок сам, когда тайлы не загрузились;
+   * `tiles` и `offline` - ручной выбор кнопкой в панели карты. Состояние локальное: это не
+   * часть состояния экрана и в адрес не пишется.
+   */
+  const [imageryChoice, setImageryChoice] = useState<'auto' | 'tiles' | 'offline'>('auto');
+  const offline =
+    imageryChoice === 'offline' || (imageryChoice === 'auto' && tileStatus === 'failed');
+  const fallback: MapFallback = offline
+    ? 'contour'
+    : tileStatus === 'failed'
+      ? 'schematic'
+      : 'none';
+
+  useEffect(() => {
+    provider?.setImageryMode(offline ? 'offline' : 'tiles');
+  }, [provider, offline]);
 
   const emptyMessage = useMemo(() => {
     if (!data.window.ready || data.loading) {
@@ -165,20 +193,14 @@ export function MapPane() {
         размер в процентах.
       */}
       <div className="absolute inset-0">
-        <div
-          ref={(node) => {
-            containerRef.current = node;
-            setMapElement(node);
-          }}
-          className="h-full w-full"
-        />
+        <div ref={attachContainer} className="h-full w-full" />
       </div>
 
       {provider !== null && (
         <MapCanvas
           provider={provider}
           data={data}
-          schematic={schematic}
+          fallback={fallback}
           interactionTarget={mapElement}
         />
       )}
@@ -191,6 +213,8 @@ export function MapPane() {
             onZoomIn={() => provider.zoomBy(1)}
             onZoomOut={() => provider.zoomBy(-1)}
             onReset={() => provider.resetView()}
+            offline={offline}
+            onToggleOffline={() => setImageryChoice(offline ? 'tiles' : 'offline')}
           />
         )}
 
@@ -201,12 +225,34 @@ export function MapPane() {
           onChange={(seconds) => useAppStore.getState().setTrackTailSeconds(seconds)}
         />
 
-        {/* Атрибуция обязательна по условиям использования слоя и должна быть видна. */}
+        {/* Атрибуция обязательна по условиям использования слоя и видна в обоих режимах:
+            сохраненный снимок - тот же слой Esri. */}
         <div className="absolute right-3 bottom-3 rounded-control bg-surface-scrim px-2 py-0.5 text-[10px] text-white/85">
-          {schematic ? 'Схема карьера: подложка недоступна' : 'Esri, Maxar, Earthstar Geographics'}
+          {fallback === 'schematic'
+            ? 'Схема карьера: подложка недоступна'
+            : offline
+              ? `Снимок: ${IMAGERY_ATTRIBUTION} (сохраненный)`
+              : `Снимок: ${IMAGERY_ATTRIBUTION}`}
         </div>
 
-        {schematic && (
+        {offline && (
+          <div
+            role="status"
+            className="absolute top-3 left-3 flex items-center gap-1.5 rounded-control bg-surface-scrim px-2 py-1 text-[11px] text-white/90"
+            title={
+              imageryChoice === 'auto'
+                ? 'Тайлы не загрузились, включен сохраненный снимок карьера'
+                : 'Включено вручную'
+            }
+          >
+            <span className="size-3.5">
+              <OfflineMapIcon />
+            </span>
+            автономный режим
+          </div>
+        )}
+
+        {fallback === 'schematic' && (
           <Panel
             tone="float"
             overImagery

@@ -5,6 +5,8 @@ import type { SimEngine } from '../sim/engine.js';
 
 export interface RouteContext {
   engine: SimEngine;
+  /** Режим замера: `POST /api/sim` принимает скорости вне `TIME_SCALES`. */
+  anyTimeScale?: boolean;
 }
 
 /** Глубина хранения позиций и минутных агрегатов, секунды: за ее пределами данных нет. */

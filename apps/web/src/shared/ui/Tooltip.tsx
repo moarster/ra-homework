@@ -10,6 +10,7 @@ import {
   type Ref,
   useCallback,
   useId,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -68,8 +69,17 @@ export function Tooltip({ content, placement = 'bottom', children, delayMs = 250
     setAnchor(node);
   }, []);
 
+  /*
+   * Составной ref обязан быть стабильным между рендерами. Новая функция на каждый рендер
+   * заставляет React отцепить старый ref (setAnchor(null)) и прицепить новый (setAnchor(узел)):
+   * оба вызова меняют состояние, и рендер порождает следующий. Под подсказками в панели карты,
+   * которая перерисовывается на каждый тик, это при 60 машинах на x300 упиралось в
+   * "Maximum update depth exceeded".
+   */
+  const ref = useMemo(() => composeRefs(setRef, childRef), [setRef, childRef]);
+
   const anchorProps: Record<string, unknown> = {
-    ref: composeRefs(setRef, childRef),
+    ref,
     onMouseEnter: show,
     onMouseLeave: hide,
     onFocus: () => setOpen(true),

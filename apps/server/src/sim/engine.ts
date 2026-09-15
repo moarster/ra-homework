@@ -52,8 +52,8 @@ import { SERVER_RULES } from '../server-config.js';
 import { STORED_METRIC_COUNT, STORED_METRICS, storedMetricIndex } from '../store/stored-metrics.js';
 import { TelemetryStore } from '../store/tiered-store.js';
 import { SimClock } from './clock.js';
+import { TelemetrySimulator } from './simulator/telemetry-simulator.js';
 import type { BackfillBatch, SnapshotWriter, TelemetrySource } from './source.js';
-import { StubTelemetrySource } from './stub-source.js';
 
 /** Индексы в буферах хранилища: считаются один раз при загрузке модуля. */
 const S = {
@@ -138,7 +138,23 @@ export interface EngineOptions {
   timeScale?: number;
   /** Источник телеметрии. На этапе 5 сюда передается симулятор вместо заглушки. */
   source?: TelemetrySource;
+  /** Режим замера: разрешены скорости вне `TIME_SCALES` (см. `isAllowedTimeScale`). */
+  anyTimeScale?: boolean;
   log?: (message: string, details?: Record<string, unknown>) => void;
+}
+
+/**
+ * Верхняя граница скорости в режиме замера: часы выполняют не больше 600 шагов за пачку
+ * в 100 мс, выше этого значения скорость упирается в защиту от залипания, а не в генерацию.
+ */
+export const MAX_BENCHMARK_TIME_SCALE = 6000;
+
+/** Допустима ли скорость времени: список `TIME_SCALES` или, в режиме замера, любое целое. */
+export function isAllowedTimeScale(scale: number, anyTimeScale: boolean): boolean {
+  if (anyTimeScale) {
+    return Number.isInteger(scale) && scale >= 1 && scale <= MAX_BENCHMARK_TIME_SCALE;
+  }
+  return TIME_SCALES.includes(scale);
 }
 
 /** Дополнительное состояние машины, которое ведет движок. */
@@ -197,12 +213,15 @@ export class SimEngine implements SnapshotWriter {
     cargoRatioPercent: null,
   };
 
+  private readonly anyTimeScale: boolean;
+
   constructor(options: EngineOptions) {
+    this.anyTimeScale = options.anyTimeScale === true;
     this.seed = options.seed;
     this.chaos = options.chaos ?? 'NORMAL';
     this.vehicleCountValue = clampVehicleCount(options.vehicleCount);
     this.historySeconds = options.historySeconds;
-    this.source = options.source ?? new StubTelemetrySource();
+    this.source = options.source ?? new TelemetrySimulator();
     this.log = options.log ?? (() => {});
     const startTime = Math.floor(Date.now() / 1000);
     this.historyFromValue = startTime - options.historySeconds;
@@ -275,7 +294,7 @@ export class SimEngine implements SnapshotWriter {
   /** Изменение параметров симуляции: любое подмножество полей. */
   patch(patch: SimPatch): SimState {
     if (patch.timeScale !== undefined) {
-      if (!TIME_SCALES.includes(patch.timeScale)) {
+      if (!isAllowedTimeScale(patch.timeScale, this.anyTimeScale)) {
         throw new Error(`недопустимая скорость времени: ${patch.timeScale}`);
       }
       // Смена скорости не перезапускает симуляцию и не рвет историю.
@@ -802,6 +821,7 @@ export class SimEngine implements SnapshotWriter {
   health(): Record<string, unknown> {
     const metrics = this.clock.metrics();
     const memory = process.memoryUsage();
+    const cpu = process.cpuUsage();
     return {
       status: 'ok',
       uptimeSeconds: Math.round((Date.now() - this.startedAtReal) / 1000),
@@ -815,7 +835,11 @@ export class SimEngine implements SnapshotWriter {
         maxLagSeconds: Math.round(metrics.maxLagSeconds * 100) / 100,
         stepsDone: metrics.stepsDone,
         load: Math.round(metrics.load * 1000) / 1000,
+        stepMsTotal: Math.round(metrics.stepMsTotal * 1000) / 1000,
+        timedSteps: metrics.timedSteps,
       },
+      // Процессорное время процесса с запуска, микросекунды: замер делит приращение на интервал.
+      cpu: { userMicros: cpu.user, systemMicros: cpu.system },
       memory: {
         storeBytes: this.store.byteLength(),
         heapUsedBytes: memory.heapUsed,

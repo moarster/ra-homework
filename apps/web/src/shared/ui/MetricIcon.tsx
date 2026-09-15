@@ -1,21 +1,27 @@
 /**
- * Иконка показателя или группы. Рисунок берется из справочника контрактов
- * (на этапе 2 это общая заглушка, уникальные иконки появятся на этапе 6),
+ * Иконка показателя, группы или статуса машины. Рисунок берется из справочника контрактов,
  * цвет наследуется через `currentColor`.
  */
 
-import { metricGroupIcon, metricIcon } from '@ra/contracts';
+import { metricGroupIcon, metricIcon, vehicleStatusIcon } from '@ra/contracts';
 import { cx } from './cx.js';
 
 export interface MetricIconProps {
-  /** Идентификатор показателя; взаимоисключающе с `groupId`. */
+  /** Идентификатор показателя; взаимоисключающе с `groupId` и `statusId`. */
   metricId?: string;
   groupId?: string;
+  /** Статус машины (`VehicleStatus`). */
+  statusId?: string;
   className?: string;
 }
 
-export function MetricIcon({ metricId, groupId, className }: MetricIconProps) {
-  const svg = groupId !== undefined ? metricGroupIcon(groupId) : metricIcon(metricId ?? 'UNKNOWN');
+export function MetricIcon({ metricId, groupId, statusId, className }: MetricIconProps) {
+  const svg =
+    statusId !== undefined
+      ? vehicleStatusIcon(statusId)
+      : groupId !== undefined
+        ? metricGroupIcon(groupId)
+        : metricIcon(metricId ?? 'UNKNOWN');
   return (
     <span
       aria-hidden="true"

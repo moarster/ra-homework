@@ -13,6 +13,13 @@ import { ScrollRootContext } from './scroll-root.js';
 import { VehiclePage } from './vehicle/VehiclePage.js';
 import './monitoring.css';
 
+/**
+ * Отладочная панель видна только с `?debug=1`: в обычном показе она не нужна, но с нее
+ * снимаются клиентские замеры (время обработки тика, частота тиков) для `BENCHMARK.md`.
+ * Параметр читается один раз при загрузке и в состояние экрана не входит.
+ */
+const DEBUG_ENABLED = new URLSearchParams(window.location.search).get('debug') === '1';
+
 export function MonitoringPane() {
   const selectedVehicleId = useSelectedVehicleId();
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -35,8 +42,7 @@ export function MonitoringPane() {
           )}
         </div>
       </ScrollRootContext>
-      {/* Панель отладки - временная, уедет на этапе 6 вместе с заглушками. */}
-      <DebugPanel />
+      {DEBUG_ENABLED && <DebugPanel />}
     </div>
   );
 }

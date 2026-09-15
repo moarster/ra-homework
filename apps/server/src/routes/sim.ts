@@ -14,6 +14,7 @@ import {
 } from '@ra/contracts';
 import type { FastifyInstance } from 'fastify';
 import { badRequest, parseQuery } from '../errors.js';
+import { isAllowedTimeScale } from '../sim/engine.js';
 import type { RouteContext } from './context.js';
 
 export function registerSimRoutes(app: FastifyInstance, context: RouteContext): void {
@@ -21,7 +22,10 @@ export function registerSimRoutes(app: FastifyInstance, context: RouteContext): 
 
   app.post('/api/sim', (request) => {
     const patch = parseQuery(simPatchSchema, request.body ?? {});
-    if (patch.timeScale !== undefined && !TIME_SCALES.includes(patch.timeScale)) {
+    if (
+      patch.timeScale !== undefined &&
+      !isAllowedTimeScale(patch.timeScale, context.anyTimeScale === true)
+    ) {
       throw badRequest(
         `скорость времени должна быть одной из: ${TIME_SCALES.join(', ')}`,
         'INVALID_TIME_SCALE',

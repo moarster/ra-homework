@@ -1,0 +1,26 @@
+# Один сервис: сервер с симулятором отдает API, websocket и собранный фронт.
+# Запуск из корня репозитория:
+#   docker compose -f docker/docker-compose.yml up --build
+# Дашборд: http://localhost:3001 (порт на хосте меняется переменной HOST_PORT).
+
+services:
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: ra-dashboard:local
+    ports:
+      - "${HOST_PORT:-3001}:3001"
+    environment:
+      # Seed симуляции: одинаковый seed дает одинаковый прогон.
+      SIM_SEED: ${SIM_SEED:-20260913}
+      # Машин на старте (3..60).
+      SIM_VEHICLES: ${SIM_VEHICLES:-3}
+      # Скорость времени на старте: одна из 1, 2, 5, 10, 30, 60.
+      SIM_TIME_SCALE: ${SIM_TIME_SCALE:-1}
+      # Мера хаоса на старте: NORMAL, MESSY, UGLY, CHAOS.
+      SIM_CHAOS: ${SIM_CHAOS:-NORMAL}
+      # Глубина предыстории, секунды (12 часов).
+      SIM_HISTORY_SECONDS: ${SIM_HISTORY_SECONDS:-43200}
+      LOG_LEVEL: info
+    restart: unless-stopped

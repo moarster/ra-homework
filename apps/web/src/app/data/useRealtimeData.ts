@@ -66,6 +66,12 @@ export function useRealtimeData(): void {
           predicate: (query) =>
             (telemetryKeyPrefixes as readonly string[]).includes(query.queryKey[0] as string),
         });
+        /*
+         * `hello` значит, что сервер снова доступен. Запросы, исчерпавшие повторы, пока его не
+         * было (справочник машин, конфигурация, состояние симуляции кешируются навсегда и сами
+         * не перезапрашиваются), иначе остались бы в ошибке до перезагрузки страницы.
+         */
+        void queryClient.refetchQueries({ predicate: (query) => query.state.status === 'error' });
       },
       onBackfill: (vehicleId) => {
         invalidateVehicleTelemetry(queryClient, vehicleId);

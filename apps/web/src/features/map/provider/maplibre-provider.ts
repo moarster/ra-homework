@@ -1,5 +1,6 @@
 /**
- * Реализация `MapProvider` на MapLibre GL с растровым спутниковым слоем Esri World Imagery.
+ * Реализация `MapProvider` на MapLibre GL с растровым спутниковым слоем Esri World Imagery
+ * и запасным слоем - одним сохраненным снимком карьера (автономный режим этапа 6).
  *
  * Карта здесь намеренно обрезана в возможностях: только спутник, только север, только внутри
  * границ карьера. Поворот и наклон выключены не ради вкуса, а потому что оверлей треков
@@ -24,6 +25,7 @@ import {
 } from './mercator.js';
 import type {
   LatLonBounds,
+  MapImageryMode,
   MapProjector,
   MapProvider,
   MapProviderOptions,
@@ -34,8 +36,19 @@ import type {
 const IMAGERY_TILES =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
-/** Атрибуция обязательна по условиям использования слоя и должна быть видна. */
-const IMAGERY_ATTRIBUTION = 'Esri, Maxar, Earthstar Geographics';
+/**
+ * Атрибуция обязательна по условиям использования слоя и должна быть видна в обоих режимах.
+ * Текст - `copyrightText` самого сервиса (Maxar в нем переименован в Vantor).
+ */
+export const IMAGERY_ATTRIBUTION = 'Esri, Vantor, Earthstar Geographics';
+
+/**
+ * Сохраненный снимок области `PIT_BOUNDS`: 2048 x 2048 px в веб-меркаторе, получен одним
+ * запросом `MapServer/export` того же сервиса. Выгрузка тайлов у Esri World Imagery запрещена
+ * (`exportTilesAllowed: false`), поэтому запасной слой - единственное изображение, а не пачка
+ * тайлов. Экстент ответа совпал с запрошенным, поэтому углы берутся из `PIT_BOUNDS`.
+ */
+const OFFLINE_IMAGERY_URL = '/offline/pit-imagery.jpg';
 
 /**
  * Сколько ошибок загрузки тайлов подряд считать отказом подложки. Одиночная ошибка - обычное
@@ -43,10 +56,31 @@ const IMAGERY_ATTRIBUTION = 'Esri, Maxar, Earthstar Geographics';
  */
 const TILE_FAILURE_THRESHOLD = 6;
 
+/**
+ * Если за это время не пришел ни один тайл, подложка считается недоступной. Без таймаута
+ * "сеть есть, но сервис висит" выглядело бы вечной загрузкой: ошибок нет, тайлов тоже.
+ * 8 секунд оказалось мало: на нагруженной машине первый тайл однажды не успел, и карта
+ * ушла в автономный режим при живой сети.
+ */
+const TILE_TIMEOUT_MS = 12_000;
+
 /** Длительность перелетов, миллисекунды. */
 const FLY_DURATION_MS = 650;
 
-function style(): StyleSpecification {
+/** `PIT_BOUNDS` -> углы изображения MapLibre: [запад, север], [восток, север], ... по часовой. */
+function imageCorners(
+  bounds: LatLonBounds,
+): [[number, number], [number, number], [number, number], [number, number]] {
+  const [[south, west], [north, east]] = bounds;
+  return [
+    [west, north],
+    [east, north],
+    [east, south],
+    [west, south],
+  ];
+}
+
+function style(bounds: LatLonBounds): StyleSpecification {
   return {
     version: 8,
     sources: {
@@ -68,11 +102,23 @@ function style(): StyleSpecification {
         maxzoom: 18,
         attribution: IMAGERY_ATTRIBUTION,
       },
+      offline: {
+        type: 'image',
+        url: OFFLINE_IMAGERY_URL,
+        coordinates: imageCorners(bounds),
+      },
     },
     layers: [
       // Подложка под тайлами: пока тайлы не доехали, область не должна быть прозрачной дырой.
       { id: 'backdrop', type: 'background', paint: { 'background-color': '#2b3a38' } },
       { id: 'imagery', type: 'raster', source: 'imagery' },
+      {
+        id: 'offline-imagery',
+        type: 'raster',
+        source: 'offline',
+        layout: { visibility: 'none' },
+        paint: { 'raster-fade-duration': 0 },
+      },
     ],
   };
 }
@@ -125,13 +171,17 @@ export class MapLibreProvider implements MapProvider {
 
   private tileStatus: MapTileStatus = 'loading';
   private tileErrors = 0;
+  private tileTimer: ReturnType<typeof setTimeout> | null = null;
+  private imageryMode: MapImageryMode = 'tiles';
+  /** Стиль разобран: до этого менять видимость слоев нельзя. */
+  private styleReady = false;
   private resizeObserver: ResizeObserver | null = null;
 
   mount(container: HTMLElement, options: MapProviderOptions): void {
     this.options = options;
     const map = new MapLibreMap({
       container,
-      style: style(),
+      style: style(options.bounds),
       center: [options.center[1], options.center[0]],
       zoom: options.zoom,
       minZoom: options.minZoom,
@@ -163,9 +213,17 @@ export class MapLibreProvider implements MapProvider {
     map.on('zoom', notify);
     map.on('resize', notify);
 
+    map.on('style.load', () => {
+      this.styleReady = true;
+      this.applyImageryMode();
+    });
+
     map.on('error', (event: ErrorEvent & { sourceId?: string }) => {
       // Сюда приходят и ошибки тайлов, и ошибки стиля. Интересны только первые.
       const sourceId = event.sourceId;
+      if (this.imageryMode !== 'tiles' || sourceId === 'offline') {
+        return;
+      }
       if (sourceId === 'imagery' || sourceId === undefined) {
         this.tileErrors += 1;
         if (this.tileErrors >= TILE_FAILURE_THRESHOLD) {
@@ -192,6 +250,7 @@ export class MapLibreProvider implements MapProvider {
       this.tileErrors = 0;
       this.setTileStatus('ready');
     });
+    this.startTileTimer();
 
     // MapLibre следит за размером окна, но не за размером своего контейнера: сплиттер
     // меняет ширину области, не трогая окно, и без наблюдателя карта осталась бы прежней.
@@ -202,12 +261,14 @@ export class MapLibreProvider implements MapProvider {
   }
 
   destroy(): void {
+    this.stopTileTimer();
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     this.viewListeners.clear();
     this.tileListeners.clear();
     this.map?.remove();
     this.map = null;
+    this.styleReady = false;
   }
 
   createProjector(): MapProjector | null {
@@ -283,6 +344,52 @@ export class MapLibreProvider implements MapProvider {
 
   getTileStatus(): MapTileStatus {
     return this.tileStatus;
+  }
+
+  setImageryMode(mode: MapImageryMode): void {
+    if (this.imageryMode === mode) {
+      return;
+    }
+    this.imageryMode = mode;
+    if (mode === 'tiles') {
+      // Вторая попытка: ошибки прошлой сессии не должны сразу вернуть автономный режим.
+      this.tileErrors = 0;
+      if (this.tileStatus !== 'ready') {
+        this.setTileStatus('loading');
+        this.startTileTimer();
+      }
+    } else {
+      this.stopTileTimer();
+    }
+    this.applyImageryMode();
+  }
+
+  private applyImageryMode(): void {
+    const map = this.map;
+    if (map === null || !this.styleReady) {
+      return;
+    }
+    const offline = this.imageryMode === 'offline';
+    // Скрытый слой тайлов не запрашивает тайлы: без сети карта не долбит сервис ошибками.
+    map.setLayoutProperty('imagery', 'visibility', offline ? 'none' : 'visible');
+    map.setLayoutProperty('offline-imagery', 'visibility', offline ? 'visible' : 'none');
+  }
+
+  private startTileTimer(): void {
+    this.stopTileTimer();
+    this.tileTimer = setTimeout(() => {
+      this.tileTimer = null;
+      if (this.imageryMode === 'tiles' && this.tileStatus === 'loading') {
+        this.setTileStatus('failed');
+      }
+    }, TILE_TIMEOUT_MS);
+  }
+
+  private stopTileTimer(): void {
+    if (this.tileTimer !== null) {
+      clearTimeout(this.tileTimer);
+      this.tileTimer = null;
+    }
   }
 
   private setTileStatus(status: MapTileStatus): void {

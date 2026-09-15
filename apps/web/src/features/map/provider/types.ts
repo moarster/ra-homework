@@ -46,6 +46,12 @@ export interface MapProviderOptions {
 
 export type MapTileStatus = 'loading' | 'ready' | 'failed';
 
+/**
+ * Подложка: живые тайлы поставщика или сохраненный снимок карьера, привязанный к координатам
+ * (автономный режим: демонстрация не зависит от сети и от доступности стороннего сервиса).
+ */
+export type MapImageryMode = 'tiles' | 'offline';
+
 export interface MapProvider {
   /** Создает карту внутри контейнера. */
   mount(container: HTMLElement, options: MapProviderOptions): void;
@@ -72,4 +78,9 @@ export interface MapProvider {
   /** Подписка на состояние подложки: загрузка, готово, тайлы недоступны. */
   onTileStatusChange(listener: (status: MapTileStatus) => void): () => void;
   getTileStatus(): MapTileStatus;
+  /**
+   * Переключение подложки. Возврат к тайлам сбрасывает статус в `loading` и заново
+   * отсчитывает время ожидания: сеть могла появиться.
+   */
+  setImageryMode(mode: MapImageryMode): void;
 }

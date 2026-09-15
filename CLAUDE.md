@@ -25,10 +25,20 @@ automation). Homework: `task-description.md`.
   and stage with FTE profile and MVP scope (2.5), dashboard prototype (2.6 - the only working
   artifact, i.e. this repository), what is out of pilot scope.
 - **Where the non-code artifacts live:**
-  - `result/` - document drafts: `0-допущения.md` (solution summary: L3 link via IPsec, gateway
+  - `result/` - document drafts: `0-overview.md` (solution summary: L3 link via IPsec, gateway
     batches readings per 5 s, backlog after outages resent via a separate low-priority topic,
-    MQTT broker and TSDB outside the cluster), `4-roadmap.md` (mermaid Gantt, checkpoints, risks,
-    trade-offs), `5-estimation.md` (empty), `dfd.drawio`.
+    MQTT broker and TSDB outside the cluster; assumptions; out of MVP), `1-dfd.md` + `dfd-l3.drawio`
+    (DFD and L3 pictures), `2-network.md` (address plan, firewall rules), `3-architecture.dsl`
+    (Structurizr: context, containers, Production deployment; direct LDAP bind to AD, no IdP;
+    in-project logging service = OpenTelemetry Collector routing security events -> SIEM and
+    operational logs/metrics -> external SigNoz; teal/cinnabar styles, cinnabar border = stateful),
+    `4-roadmap.md` (mermaid Gantt, checkpoints, risks), `5-estimation.md` (effort by week and role)
+  - Validate the DSL without Docker: the VS Code c4-dsl extension jar bundles the Structurizr DSL
+    parser; set `InterceptParserAspect.aspectOf().parserListener` to a no-op via reflection first.
+    View keys must be ASCII (use `title` for Russian names).
+  - `result/c4/docker-compose.yml` - Structurizr Lite for the DSL (`docker compose up` in `result/`,
+    port `STRUCTURIZR_PORT` default 8080, `STRUCTURIZR_WORKSPACE_FILENAME=3-architecture`);
+    generated layout files are in `result/.gitignore`.
   - `prep/00-10` - interview study materials (networking L1-L3, capacity math, industrial data,
     architecture, corporate integrations, notations, project management, estimation, management
     interview, homework attack plan). Key numbers are already computed and must stay consistent
@@ -43,12 +53,15 @@ automation). Homework: `task-description.md`.
 
 | File | Contents | Read when |
 |---|---|---|
-| `CONTEXT.md` | Domain: metrics and norms (6), traffic light (7), bit fields (8), UI decisions (9), scenarios and chaos level (10), style (11) | Any domain logic |
-| `SPEC.md` | Contracts: units (2), metric registry (3), norms (4), snapshot/series/tracks/events (5), storage (6), REST (7), websocket (8), telemetry source (9), frontend store (10), budgets (11), code conventions (12) | Any API or data flow |
-| `INIT.md` | User's original vision | Checking that everything promised is done |
-| `ANALYSIS_AND_QUESTIONS.md` | Gaps in INIT.md and domain forks | Disputed decisions |
-| `0_PROMPT_FOUNDATION.md` ... `6_PROMPT_AUX.md` | Stage specs | Before starting a stage |
-| `README.md`, `apps/server/README.md`, `apps/web/README.md` | Run, env, structure | READMEs lag: monitoring is still described as "stage 4" |
+| `prompts/CONTEXT.md` | Domain: metrics and norms (6), traffic light (7), bit fields (8), UI decisions (9), scenarios and chaos level (10), style (11) | Any domain logic |
+| `prompts/SPEC.md` | Contracts: units (2), metric registry (3), norms (4), snapshot/series/tracks/events (5), storage (6), REST (7), websocket (8), telemetry source (9), frontend store (10), budgets (11), code conventions (12) | Any API or data flow |
+| `prompts/INIT.md` | User's original vision | Checking that everything promised is done |
+| `prompts/ANALYSIS_AND_QUESTIONS.md` | Gaps in INIT.md and domain forks | Disputed decisions |
+| `prompts/0_PROMPT_FOUNDATION.md` ... `prompts/6_PROMPT_AUX.md` | Stage specs | Before starting a stage |
+| `README.md` | What the prototype covers (2.6), run, architecture in 5 paragraphs, assumptions, out-of-scope table, benchmark summary | Defense prep, docs changes |
+| `prompts/DEMO.md` | 5-minute demo script (8 steps) | Before a demo, after UI changes |
+| `prompts/BENCHMARK.md` | Server table from `scripts/benchmark.ts` + client section (kept between `<!-- client:start/end -->` markers on rerun) | Perf questions |
+| `apps/server/README.md`, `apps/web/README.md` | Env, structure, frontend decisions | Before editing that app |
 
 ---
 
@@ -61,8 +74,8 @@ automation). Homework: `task-description.md`.
 | 2 | `apps/web` shell: topbar, splitter, design system, store, clients | done |
 | 3 | Pit map (left pane) | done |
 | 4 | Monitoring (right pane): vehicle list, vehicle page, charts, time-series canvas | done |
-| 5 | Telemetry simulator replacing `stub-source.ts` (TypeScript inside `apps/server`) | not started |
-| 6 | Unique icons, offline map, max time-scale benchmark, packaging, remove `DebugPanel` | not started |
+| 5 | Telemetry simulator replacing the stage 1 stub (TypeScript inside `apps/server`) | done |
+| 6 | Unique icons, offline map, max time-scale benchmark, packaging, `DebugPanel` behind `?debug=1`, docs | done (see section 6b; docker image not built locally - daemon was not running) |
 
 ---
 
@@ -80,10 +93,16 @@ npx biome check --write <absolute path>    # autoformat
 - Browser pane: `.claude/launch.json` has `ra-server` (port 3001) and `ra-web` (5173).
   Start them with `preview_start`, never via Bash.
 - Server env: `PORT`, `SIM_SEED` (20260913), `SIM_VEHICLES` (3), `SIM_HISTORY_SECONDS` (43200),
-  `LOG_LEVEL`, `LOG_PRETTY`, `CORS_ORIGINS`. Web: `SERVER_ORIGIN`.
+  `SIM_TIME_SCALE` (1, must be in `TIME_SCALES`), `SIM_CHAOS` (NORMAL), `STATIC_DIR` (serve built
+  web from the server port), `SIM_BENCHMARK` (1 = any integer speed up to 6000), `LOG_LEVEL`,
+  `LOG_PRETTY`, `CORS_ORIGINS`. Web: `SERVER_ORIGIN`.
+- Benchmark: `pnpm build` then `node scripts/benchmark.ts` (~35 min; env `BENCH_SECONDS`,
+  `BENCH_COUNTS`, `BENCH_SCALES`, `BENCH_PORT` 3099). Spawns `apps/server/dist` per vehicle count.
+- Docker: `docker compose -f docker/docker-compose.yml up --build` -> http://localhost:3001.
+- Debug panel: append `?debug=1`.
 - Simulation control: `POST /api/sim {vehicleCount, timeScale, chaos, running}`. Restore to
   3 vehicles and x1 after tests. Generating history for 57 extra vehicles takes about 11 s.
-- Not a git repository (nothing to commit).
+- Git repository (branch `master`, initial commit only; most docs untracked). Commit only when asked.
 
 ---
 
@@ -110,39 +129,45 @@ apps/web             Vite + React 19 + Tailwind v4 + zustand + TanStack Query + 
 | `vehicles.ts` | Models, 3 named vehicles (v-12, v-07, v-21), `generateFleet` |
 | `pit.ts` | Pit geometry, routes, zones, timezone |
 | `api.ts` | zod schemas for REST and websocket, `encodeSnapshot/decodeSnapshot` |
-| `icons.ts` | Icons - single placeholder for all (stage 6) |
+| `icons.ts` | Stage 6 icon set built from small helpers (`svg`, `path`, `circle`, `gear`, `drop`): 30 metrics, 6 groups, 7 statuses (`vehicleStatusIcon`); brakes differ by corner marker; rules enforced by `icons.test.ts` |
 
 ### 5.2. apps/server/src
 
-- `sim/engine.ts` - the core: clock + source + storage + detector + ws. `sim/stub-source.ts` - stage 1
-  stub (replaced in stage 5), `sim/source.ts` - `TelemetrySource` interface.
+- `sim/engine.ts` - the core: clock + source + storage + detector + ws; creates
+  `TelemetrySimulator` unless `options.source` is given. `sim/source.ts` - `TelemetrySource`
+  interface. `sim/simulator/` - stage 5 simulator (section 6a). The stage 1 stub was deleted.
 - `store/` - ring buffers `raw` 1 s/30 min, `s10` 10 s/6 h, `m1` 60 s/24 h; 30 metrics stored
   (`stored-metrics.ts`). `query.ts`: tier selection, folding to `maxPoints`,
   `t0 = floor(from/step)*step`, point i = `t0 + i*step`.
 - `events/detector.ts`, `events/journal.ts` - bits and threshold breaches folded into events.
 - `summary/summary.ts` - per-vehicle period summary. `ws/hub.ts` - tick broadcast (max 4/s).
-- `routes/` - REST per `SPEC.md` section 7.
+- `routes/` - REST per `prompts/SPEC.md` section 7. `RouteContext.anyTimeScale` (benchmark mode).
+- `static.ts` - own static handler (no `@fastify/static`): `/*` wildcard, SPA fallback to
+  `index.html`, `/api/*` unknown -> JSON 404, path must stay inside `STATIC_DIR`.
+- `sim/engine.ts` exports `isAllowedTimeScale`, `MAX_BENCHMARK_TIME_SCALE`; `health()` has
+  `cpu {userMicros, systemMicros}` and `clock.stepMsTotal/timedSteps` for the benchmark.
 
 ### 5.3. apps/web/src
 
 - `app/` - `App.tsx`, `layout/SplitLayout.tsx` (right section is container `@container/monitor`),
   `data/useRealtimeData.ts` (ws, cache invalidation on `hello`/`backfill`/`events`),
   `theme/tokens.css` + `app.css` (tokens, utilities `glass`, `glass-float`, `glass-popup`, `tabular`).
-- `shared/store` - zustand, `AppState` from `SPEC.md` 10; URL sync (`url.ts`, `sync.ts`);
+- `shared/store` - zustand, `AppState` from `prompts/SPEC.md` 10; URL sync (`url.ts`, `sync.ts`);
   `selectVehicle` resets `monitorTs` and `focusMetric`.
 - `shared/api` - typed client (zod-validated responses), hooks: `useVehicles` (cached forever),
   `useSeries`, `useTrack`, `useSummary`, `usePeriodWindow` (right edge steps every 5 s).
 - `shared/ws` - `snapshot-store.ts` (mutable, outside React; `subscribeVehicle`, versions, tick
   stats), `ws-client.ts` (ticks applied once per frame, 250 ms fallback timer).
-- `shared/ui` - Badge, Button, Panel, Select, Popover, Tooltip, ValueDisplay, MetricIcon, Skeleton,
-  `severityClasses` (the only severity -> color mapping).
+- `shared/ui` - Badge, Button, Panel, Select, Popover, Tooltip, ValueDisplay, MetricIcon
+  (`metricId` / `groupId` / `statusId`), Skeleton, SeverityMark (shape per severity, duplicates
+  color for color blindness), `severityClasses` (the only severity -> color mapping).
 - `features/topbar` - period, clock (`SimClock` already shows monitor time and the "к последней
   точке" button), real-time toggle, tracked metrics, simulation controls, theme.
 - `features/map` - `provider/` (MapLibre behind an abstraction), `overlay/` (canvas renderer),
   `data/tail-store.ts`, `popups/VehiclePopup.tsx` (clicking a deviation sets `focusMetric`),
   `selection-origin.ts` (map flies to the track only if the vehicle was picked on the right).
 - `features/monitoring` - stage 4, see section 6.
-- `features/debug/DebugPanel.tsx` - temporary, removed in stage 6.
+- `features/debug/DebugPanel.tsx` - rendered only with `?debug=1` (`MonitoringPane`).
 
 ---
 
@@ -186,6 +211,62 @@ MonitoringPane (scroll root + ScrollRootContext)
 - **Header**: `use-sticky-summary.ts` keeps the previous response (window moves every 5 s);
   "no data for period" -> explanation + big driver phone, charts and canvas replaced by one
   EmptyState. `EventStats`: last occurrence time fetched from `/api/events` on click.
+
+---
+
+## 6a. Telemetry simulator (stage 5) - how it works
+
+Spec: `prompts/5_PROMPT_SIMULATOR.md`. Files in `apps/server/src/sim/simulator/`:
+
+| File | Contents |
+|---|---|
+| `telemetry-simulator.ts` | `TelemetrySource` impl; options `{scenarios, route}` for tests; `scenarioStarts()`, `tripsByVehicle()`. Module comment has the "why TS, not Python" rationale |
+| `vehicle.ts` | `VehicleSim`: trip FSM, corridor motion, channels, load/fuel, scenarios, bits, frame, outage buffer |
+| `params.ts` | Mode target table, rpm->pressure curves, tau, noise/drift amplitudes, cycle and scenario params. Every deviation from the spec numbers is commented there |
+| `chaos-profile.ts` | `chaosProfile(level)` - the only place with per-level numbers; intensity and overlap come from `CHAOS_LEVELS` |
+| `route-geometry.ts` | Polyline in local meters, vertex-averaged normals, `positionAt(s, lateral)`, `halfWidthAt`, `distanceToRoute` (tests) |
+| `flags.ts` | `FlagDebouncer`: bits from contract norms (compiled rules), raise after 5 s, clear after 15 s |
+| `scenarios.ts` | Scenario enum, weights (mandatory x2), triggers (mode binding) |
+| `shift.ts` | Site UTC offset via Intl, break anchors 02/08/14/20 local |
+
+- **Model:** value -> mode target with tau; published = value x (1 + drift + noise), both OU processes
+  with the chaos gain inside the increment (no steps on level change). Oil pressure is a function of
+  current rpm (not lagged), transmission pressure too (12.4 bar accumulator with engine off).
+- **Chaos:** gains apply immediately; `vehicleSpread`, `targetBias`, `brakeBias`, corridor and GNSS
+  amplitude blend per vehicle over 2-5 min. `targetBias` shifts the mode target (not the current
+  value) toward the yellow boundary, only in `worseDirection`.
+- **Cycle:** LOADING -> HAULING -> UNLOADING -> (break/refuel) -> RETURNING -> (break/refuel/idle/
+  queue) -> LOADING. Min trip 24 min (queue at the excavator). Breaks happen at the next stop, the
+  truck parks where it stands (no teleport). Stop point 20-30 m back from the route end.
+- **Outage:** live mode buffers every second and hands the buffer out when the link returns; in
+  history mode an outage is a permanent hole (the engine writes history directly, no backfill path).
+- **Determinism:** one `mulberry32` per vehicle seeded with `seed + hash(id)`; vehicle state is
+  initialized lazily on its first `advance`, so vehicles added later start from their history time.
+
+---
+
+## 6b. Stage 6 - what was added
+
+- **Offline map:** `MapProvider.setImageryMode('tiles' | 'offline')`. Style has two sources: Esri
+  tiles and an `image` source `/offline/pit-imagery.jpg` (2048 px, one `MapServer/export` request,
+  extent == `PIT_BOUNDS`, hidden by default). Tiles fail -> `failed` after 6 errors or 12 s without a
+  loaded tile. `MapPane` keeps `imageryChoice` auto/tiles/offline (local state, not in URL):
+  auto + failed -> offline image + `drawPitSchematic(..., backdrop=false)` contour + badge
+  "автономный режим"; manual tiles + failed -> schematic on solid backdrop. Toggle button in
+  `MapControls`. Attribution text is the service `copyrightText` ("Esri, Vantor, Earthstar
+  Geographics") in every mode.
+- **Benchmark:** `scripts/benchmark.ts` (runs under plain Node, type stripping). Pass = deficit
+  <= max(2% of expected virtual seconds, 2 steps) and RSS <= 400 MB; stops a vehicle count after two
+  consecutive failures. Writes `prompts/BENCHMARK.md`, keeps the client section.
+- **Docker:** `docker/Dockerfile` (node:22-alpine, pnpm 11 via npm, build all, `pnpm deploy --prod
+  --legacy`, runtime has server dist + web dist in `/app/public`), `docker/docker-compose.yml`,
+  root `.dockerignore`.
+- **Polish:** `VehicleList` shows "Сервер недоступен" once the vehicles query failed and retries;
+  `SeverityMark` on fleet cards; status icon in `VehicleHeader`. `useRealtimeData` refetches all
+  queries in `error` state on `hello` (forever-cached vehicles/config/sim stayed broken after a
+  server outage until reload).
+- **Speeds:** `TIME_SCALES` = 1, 2, 5, 10, 30, 60, 120, 300 (benchmark: 60 vehicles x300 passes).
+- **Tooltip / MapPane ref loop fixed:** see pitfalls.
 
 ---
 
@@ -235,15 +316,58 @@ MonitoringPane (scroll root + ScrollRootContext)
 - **After `biome check --write`** reformatted files must be re-read before `Edit`.
 - Perf check "60 vehicles x60": POST `/api/sim`, wait for `running: true`, measure list and vehicle
   page separately, then restore 3 vehicles and x1.
+- **The event detector opens a flag event on the first frame a bit is set** - any bit source must
+  debounce itself (the simulator does, `flags.ts`).
+- **Norm contexts that bite a generator:** transmission pressure has no engine-off context (0 bar =
+  red parked truck); oil pressure switches zones at exactly 1000 rpm (never park rpm there); cargo
+  and axle norms apply only to a loaded moving truck; mode targets from the spec table sat on yellow
+  boundaries (coolant 96, oil 110, return speed 26-32).
+- **`clock.advance(n)` overstates step cost** (3600 x 60 vehicles takes ~1.1 s even with the old
+  stub). Judge "no lag at x60" by the real clock: `engine.health().clock.lagSeconds`.
+- **Port 3001 may be taken by another chat's `rusal-server`** running the same folder (tsx watch
+  picks up edits). Read its state, do not POST `/api/sim` to it.
+- **`pkill -f "<pattern>"` in the Bash tool kills its own shell** (the pattern is in the command
+  line; exit 144). Use a bracket trick: `pkill -f "apps/server/dis[t]/index.js"`.
+- **Virtual time is integer:** at x1 a 60 s window reads 59-61 steps, so a pure 2% lag criterion
+  fails low speeds by rounding. The benchmark allows at least 2 steps.
+- **Esri World Imagery forbids tile export** (`exportTilesAllowed: false` in `MapServer?f=json`):
+  only single `export` images are allowed for offline use.
+- **MapLibre tile requests are not visible** in the Browser pane network log (worker fetch);
+  test tile failure by patching `window.fetch` for `arcgisonline` and zooming to new tiles.
+- **A tile timeout of 8 s gave a false offline switch** on a loaded machine; now 12 s.
+- **Biome checks HTML in `apps/web/public`**: a temporary catalog page there breaks `pnpm check`.
+- **The Browser pane cannot screenshot `file://` pages**: put temporary pages under `apps/web/public`
+  and open them through the Vite server, then delete them.
+- **Ref callbacks that set state must be stable** (`useCallback`/`useMemo`). A new ref function per
+  render makes React 19 detach (null) and attach (node) on every commit; both set state, so a parent
+  re-rendering per tick loops into "Maximum update depth exceeded". Hit in `Tooltip` (composed ref)
+  under the map controls at 60 vehicles x300; `MapPane` container ref fixed the same way.
+- **Rebuilding contracts restarts the dev server** (tsx watch sees dist): a POST `/api/sim` made
+  before the build is lost - check `vehicles` in client stats before trusting a measurement.
+- **To read a full React error stack** in the Browser pane, patch `console.error` to collect
+  `arg.stack`, then press the error boundary retry button.
+- **`pnpm deploy --prod` run inside the workspace marks `node_modules` as a production install**:
+  afterwards every `pnpm check`/`pnpm test` fails in the deps status check
+  (`ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`, it wants `pnpm install --production`). Deploy only
+  inside Docker; if run locally, restore with `CI=true pnpm install --frozen-lockfile` (stop dev
+  servers first).
 
 ---
 
 ## 9. Verified stage 4 results (baseline for future changes)
 
-- `pnpm check` clean; tests: web 60, contracts 87.
+- `pnpm check` clean; tests: web 60, contracts 86, server 70 (after stage 5).
+- Stage 5: real clock at x60 with 60 vehicles - 59.7 virtual s per real s, lag 0 (same as the stub);
+  simulator alone ~370 ms per 3600 steps x 60 vehicles; 12 h history for 3 vehicles ~0.6 s.
+  Simulator tests ~10 s (12 h runs of 10 vehicles).
 - 60 vehicles, x60: list - no long tasks, tick task p50 11 ms, max 15 ms; vehicle page - no long
   tasks, p50 16 ms; tick apply in snapshot store 0.2-0.5 ms (budget 8 ms).
 - One series load per vehicle and period (plus refetch after `hello`), not per tick.
 - About 9-10 of 28 charts mounted at once.
 - Known external defect: with a monitor set, the "к последней точке" button in the topbar overlaps
   the simulation block at medium widths (stage 2 component).
+- Stage 6: `pnpm check` clean, tests web 60, contracts 92 (with icons), server 74 (with static),
+  no warnings. Benchmark: all 32 combinations
+  pass; 60 vehicles x300 - 7% of one core, RSS 314 MB, tick 253 KB avg, step 0.22 ms per fleet
+  second. Client, 60 vehicles: list tick p95 0.5 ms (x60) / 1.0 ms (x300), vehicle page x300 p95
+  0.9 ms, no long tasks. FPS not measured (Browser pane caps rAF).

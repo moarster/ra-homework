@@ -8,6 +8,7 @@ export { MetricIcon, type MetricIconProps } from './MetricIcon.js';
 export { Panel, type PanelProps, type PanelTone } from './Panel.js';
 export { Popover, type PopoverProps, usePopoverAnchor } from './Popover.js';
 export { Select, type SelectOption, type SelectProps } from './Select.js';
+export { SeverityMark, type SeverityMarkProps } from './SeverityMark.js';
 export { Skeleton, type SkeletonProps } from './Skeleton.js';
 export { Slider, type SliderProps } from './Slider.js';
 export { SEVERITY_CLASSES, type SeverityClasses, severityClasses } from './severity.js';

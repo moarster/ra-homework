@@ -22,7 +22,7 @@ import {
 import type { ReactNode } from 'react';
 import { formatDate, formatDuration, formatShortTime } from '@/shared/format';
 import { usePeriodId } from '@/shared/store';
-import { Badge, cx, Panel, Skeleton, severityClasses } from '@/shared/ui';
+import { Badge, cx, MetricIcon, Panel, Skeleton, severityClasses } from '@/shared/ui';
 import { useVehicleSnapshot } from '@/shared/ws';
 import { isGrey } from '../data/fleet.js';
 import type { ApiVehicle } from '../list/use-fleet.js';
@@ -170,7 +170,10 @@ function LiveState({ vehicleId }: { vehicleId: string }) {
   return (
     <span className="flex items-center gap-2">
       <Badge severity={severity}>{severityClasses(severity).name}</Badge>
-      <span className="text-[12px] text-fg-muted">{VEHICLE_STATUS_NAMES[snapshot.st]}</span>
+      <span className="flex items-center gap-1 text-[12px] text-fg-muted">
+        <MetricIcon statusId={snapshot.st} className="size-4" />
+        {VEHICLE_STATUS_NAMES[snapshot.st]}
+      </span>
     </span>
   );
 }
