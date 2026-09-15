@@ -206,7 +206,13 @@ export function SplitLayout({ left, right, leftLabel, rightLabel }: SplitLayoutP
           aria-hidden="true"
           className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border-base group-hover:bg-primary/60"
         />
-        <div className="glass-float absolute top-1/2 z-10 flex -translate-y-1/2 flex-col gap-0.5 rounded-control p-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+        {/* stopPropagation: иначе pointerdown всплывает к разделителю, тот захватывает
+            указатель через setPointerCapture, и клик по кнопке ретаргетится на разделитель,
+            не долетая до onClick кнопки. */}
+        <div
+          onPointerDown={(event) => event.stopPropagation()}
+          className="glass-float absolute top-1/2 z-10 flex -translate-y-1/2 flex-col gap-0.5 rounded-control p-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+        >
           <Tooltip
             content={leftCollapsed ? `Показать: ${leftLabel}` : `Свернуть: ${leftLabel}`}
             placement="bottom"

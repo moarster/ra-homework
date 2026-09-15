@@ -277,6 +277,9 @@ export function MapCanvas({ provider, data, fallback, interactionTarget }: MapCa
       const target = pickAt(x, y);
 
       if (target === null) {
+        // Клик по пустой карте снимает выбор машины - вместе с ним, через `tailVisible`,
+        // возвращаются хвосты остальных машин, которые сузились до одной выбранной.
+        store.selectVehicle(null);
         setPopup(null);
         return;
       }

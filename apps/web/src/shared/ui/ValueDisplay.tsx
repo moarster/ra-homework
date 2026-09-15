@@ -25,7 +25,7 @@ export interface ValueDisplayProps {
   severity?: Severity;
   /** Подписывать название показателя сверху. */
   withName?: boolean;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
@@ -33,6 +33,7 @@ const SIZES = {
   sm: 'text-[12px]',
   md: 'text-[15px]',
   lg: 'text-[20px]',
+  xl: 'text-[22px]',
 } as const;
 
 export function ValueDisplay({

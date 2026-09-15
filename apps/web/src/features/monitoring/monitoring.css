@@ -3,45 +3,51 @@
  * `SplitLayout`), а не по ширине окна. Показатели не переносятся и не сжимаются: при нехватке
  * места они скрываются с конца списка приоритетов (раздел 9.1 CONTEXT.md).
  *
- * Пороги выведены из геометрии плашки: отступы списка и плашки 48 px, полоса светофора 4 px,
- * блок номера 96 px, первый показатель (статус и скорость) 112 px, остальные по 76 px
- * с зазором 8 px. Первые два показателя помещаются в минимальную ширину области 360 px.
+ * Пороги измерены на живой разметке (иконка 24 px, значение 22 px, подпись убрана - показывается
+ * по наведению в подсказке): плитка первого показателя 136 px, остальные по 132 px с зазором 8 px,
+ * то есть каждый следующий показатель добавляет 140 px. В минимальную ширину области 360 px
+ * помещается только первый.
  */
 
 .vehicle-card-metric {
   display: none;
 }
 
-.vehicle-card-metric[data-rank="1"],
-.vehicle-card-metric[data-rank="2"] {
+.vehicle-card-metric[data-rank="1"] {
   display: flex;
 }
 
-@container monitor (min-width: 448px) {
+@container monitor (min-width: 456px) {
+  .vehicle-card-metric[data-rank="2"] {
+    display: flex;
+  }
+}
+
+@container monitor (min-width: 596px) {
   .vehicle-card-metric[data-rank="3"] {
     display: flex;
   }
 }
 
-@container monitor (min-width: 532px) {
+@container monitor (min-width: 736px) {
   .vehicle-card-metric[data-rank="4"] {
     display: flex;
   }
 }
 
-@container monitor (min-width: 616px) {
+@container monitor (min-width: 876px) {
   .vehicle-card-metric[data-rank="5"] {
     display: flex;
   }
 }
 
-@container monitor (min-width: 700px) {
+@container monitor (min-width: 1016px) {
   .vehicle-card-metric[data-rank="6"] {
     display: flex;
   }
 }
 
-@container monitor (min-width: 784px) {
+@container monitor (min-width: 1156px) {
   .vehicle-card-metric[data-rank="7"] {
     display: flex;
   }

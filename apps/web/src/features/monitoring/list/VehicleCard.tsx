@@ -21,7 +21,7 @@ import {
 import { memo } from 'react';
 import { formatDuration, formatShortTime } from '@/shared/format';
 import { useAppStore, useTrackedMetrics } from '@/shared/store';
-import { cx, MetricIcon, SeverityMark, severityClasses, ValueDisplay } from '@/shared/ui';
+import { cx, MetricIcon, SeverityMark, severityClasses, Tooltip, ValueDisplay } from '@/shared/ui';
 import { isGrey } from '../data/fleet.js';
 import { resolveModel, severitiesOf, snapshotValues } from '../data/snapshot-values.js';
 import { ChevronRightIcon } from '../icons.js';
@@ -106,6 +106,7 @@ export const VehicleCard = memo(function VehicleCard({ vehicle }: { vehicle: Api
               return (
                 <CardMetric
                   key={metricId}
+                  vehicleId={vehicle.id}
                   metricId={metricId}
                   rank={index + 1}
                   value={value}
@@ -135,6 +136,7 @@ export const VehicleCard = memo(function VehicleCard({ vehicle }: { vehicle: Api
 });
 
 interface CardMetricProps {
+  vehicleId: string;
   metricId: MetricId;
   rank: number;
   value: number | null;
@@ -150,6 +152,7 @@ interface CardMetricProps {
 /** Сырое значение меняется каждый тик, а видимый текст - редко: сравнивается текст. */
 function sameCardMetric(a: CardMetricProps, b: CardMetricProps): boolean {
   return (
+    a.vehicleId === b.vehicleId &&
     a.metricId === b.metricId &&
     a.rank === b.rank &&
     a.text === b.text &&
@@ -161,6 +164,7 @@ function sameCardMetric(a: CardMetricProps, b: CardMetricProps): boolean {
 }
 
 const CardMetric = memo(function CardMetric({
+  vehicleId,
   metricId,
   rank,
   value,
@@ -171,26 +175,50 @@ const CardMetric = memo(function CardMetric({
 }: CardMetricProps) {
   const metric = getMetric(metricId);
   return (
-    <div
-      data-rank={rank}
-      title={metric.name}
-      className={cx(
-        'vehicle-card-metric shrink-0 flex-col gap-0.5 rounded-control px-1 py-0.5',
-        rank === 1 ? 'w-[112px]' : 'w-[76px]',
-        tracked && 'bg-primary-soft',
-      )}
+    <Tooltip
+      placement="top"
+      content={
+        status === null ? (
+          metric.name
+        ) : (
+          <>
+            {metric.name}
+            <div className="text-fg-muted">{status}</div>
+          </>
+        )
+      }
     >
-      <span className="flex min-w-0 items-center gap-1 text-[10px] text-fg-faint">
-        <MetricIcon metricId={metricId} className={cx('size-3', severityClasses(severity).text)} />
-        <span className="truncate">{status ?? metric.shortName}</span>
-      </span>
-      <ValueDisplay
-        metricId={metricId}
-        value={value}
-        quality={quality}
-        severity={severity}
-        size="sm"
-      />
-    </div>
+      {/*
+        Плитка ловит указатель ради подсказки, поэтому клик по ней не доходит до кнопки плашки
+        под ней - открываем страницу машины сами. С клавиатуры плашку открывает ее кнопка.
+      */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: дублирует кнопку плашки, доступную с клавиатуры */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: то же - основной элемент управления это кнопка плашки */}
+      <div
+        data-rank={rank}
+        onClick={() => useAppStore.getState().selectVehicle(vehicleId)}
+        className={cx(
+          'vehicle-card-metric pointer-events-auto shrink-0 cursor-pointer items-center gap-1.5',
+          'rounded-control border px-2 py-1.5 transition-colors duration-150',
+          // Ширина с запасом под самое длинное значение ("12,4 бар"): текст не сжимается.
+          rank === 1 ? 'w-[136px]' : 'w-[132px]',
+          tracked
+            ? 'border-primary/30 bg-primary-soft hover:bg-primary/25'
+            : 'border-border-base bg-surface hover:bg-surface-strong',
+        )}
+      >
+        <MetricIcon
+          metricId={metricId}
+          className={cx('size-6 shrink-0', severityClasses(severity).text)}
+        />
+        <ValueDisplay
+          metricId={metricId}
+          value={value}
+          quality={quality}
+          severity={severity}
+          size="xl"
+        />
+      </div>
+    </Tooltip>
   );
 }, sameCardMetric);

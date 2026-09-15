@@ -28,7 +28,7 @@ gantt
     Акт ввода в ОЭ, обучение                  :crit, e2, after e1, 1w
     Акт о вводе в ОЭ, обучение проведено, документация передана: crit,  milestone, kt6, after e2,
 ```
-![dfd-l3-dfd](img/roadmap.png)
+![roadmap](img/roadmap.png)
 
 ## Риски
 
