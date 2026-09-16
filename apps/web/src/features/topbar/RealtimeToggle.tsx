@@ -32,7 +32,7 @@ export function ConnectionIndicator() {
   const connection = useConnection();
   return (
     <Tooltip content={STATUS_HINT[connection]} placement="bottom">
-      <span className="flex cursor-help items-center gap-1.5" role="status">
+      <span className="flex items-center gap-1.5" role="status">
         <span aria-hidden="true" className={cx('size-2 rounded-full', STATUS_DOT[connection])} />
         <span className="text-[11px] whitespace-nowrap text-fg-faint">
           {STATUS_TEXT[connection]}

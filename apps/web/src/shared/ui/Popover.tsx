@@ -106,7 +106,9 @@ export function Popover({
         top: position?.top ?? 0,
         visibility: position === null ? 'hidden' : 'visible',
       }}
-      className={cx('glass-float fixed z-40 rounded-panel p-2 text-fg', className)}
+      // Плотная поверхность, а не полупрозрачное стекло: сквозь список не должно читаться то,
+      // что под ним (плашки, графики, снимок карты).
+      className={cx('glass-popup fixed z-40 rounded-panel p-2 text-fg', className)}
     >
       {children}
     </div>,

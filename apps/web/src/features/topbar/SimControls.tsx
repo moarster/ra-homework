@@ -240,7 +240,7 @@ function ViewersIndicator() {
       <span
         role="status"
         aria-label={`Открыто вкладок: ${viewers}`}
-        className="flex cursor-help items-center gap-1 text-[12px] text-fg-muted tabular"
+        className="flex items-center gap-1 text-[12px] text-fg-muted tabular"
       >
         <span className="text-fg-faint">
           <ViewersIcon />

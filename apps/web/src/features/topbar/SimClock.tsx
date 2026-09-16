@@ -52,7 +52,7 @@ export function SimClock({ compact }: { compact: boolean }) {
           </span>
         }
       >
-        <div className="flex cursor-help items-baseline gap-2">
+        <div className="flex items-baseline gap-2">
           <span
             className={cx(
               'tabular text-[19px] leading-none font-semibold',

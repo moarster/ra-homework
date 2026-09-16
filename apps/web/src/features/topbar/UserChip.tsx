@@ -31,7 +31,7 @@ export function UserChip({ compact }: { compact: boolean }) {
         type="button"
         className={cx(
           'flex h-7 items-center gap-2 rounded-pill border border-border-base bg-surface-weak',
-          'pr-2.5 pl-1.5 text-left hover:bg-surface-hover cursor-help',
+          'pr-2.5 pl-1.5 text-left hover:bg-surface-hover cursor-default',
         )}
       >
         <span className="flex size-5 items-center justify-center rounded-full bg-primary-soft text-primary-text">

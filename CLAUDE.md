@@ -148,7 +148,11 @@ apps/web             Vite + React 19 + Tailwind v4 + zustand + TanStack Query + 
   `useRealtimeData` handles control messages: mirror sim into store/query cache, invalidate vehicles
   and latest when fleet or chaos changed, `noteSimChangedByOther` when `changedBy` is not ours.
   Store has `viewers` (null = control channel down) and `simChangedByOtherAt`.
-- `shared/ui` - Badge, Button, Panel, Select, Popover, Tooltip, ValueDisplay, MetricIcon
+- `shared/ui` - Popover and Tooltip use the dense `glass-popup` surface (translucent `glass-float`
+  let content show through). Tooltip hides after its anchor is pressed (until pointer leaves) and
+  never shows while the anchor has `aria-expanded="true"` on itself or inside, so it does not cover
+  the list it opened. No `cursor-help` in the topbar.
+  Badge, Button, Panel, Select, Popover, Tooltip, ValueDisplay, MetricIcon
   (`metricId` / `groupId` / `statusId`), Skeleton, SeverityMark (shape per severity, duplicates
   color for color blindness), `severityClasses` (the only severity -> color mapping).
 - `features/topbar` - period, clock (`SimClock` already shows monitor time and the "к последней
