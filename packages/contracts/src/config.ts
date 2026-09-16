@@ -117,6 +117,51 @@ export const CHAOS_LEVELS: ChaosLevelDef[] = [
  */
 export const TIME_SCALES: number[] = [1, 2, 5, 10, 30, 60, 120, 300];
 
+export interface TimeScaleLimit {
+  /** Полоса действует до этого числа машин включительно. */
+  maxVehicles: number;
+  maxTimeScale: number;
+}
+
+/**
+ * Предел скорости времени по числу машин. Стенд смотрят несколько человек сразу, а нагрузка
+ * растет с произведением машин на скорость: сервер генерирует машино-секунды, каждый браузер
+ * их принимает и рисует. Края заданы явно (3 машины x300, 60 машин x2), промежуточные полосы
+ * по десять машин выбраны на глаз и требуют проверки замером на стенде.
+ */
+export const TIME_SCALE_LIMITS: TimeScaleLimit[] = [
+  { maxVehicles: 5, maxTimeScale: 300 },
+  { maxVehicles: 10, maxTimeScale: 120 },
+  { maxVehicles: 20, maxTimeScale: 60 },
+  { maxVehicles: 30, maxTimeScale: 30 },
+  { maxVehicles: 40, maxTimeScale: 10 },
+  { maxVehicles: 50, maxTimeScale: 5 },
+  { maxVehicles: MAX_VEHICLES, maxTimeScale: 2 },
+];
+
+/** Наибольшая допустимая скорость времени для заданного числа машин. */
+export function maxTimeScaleFor(vehicleCount: number): number {
+  const limit =
+    TIME_SCALE_LIMITS.find((entry) => vehicleCount <= entry.maxVehicles) ??
+    TIME_SCALE_LIMITS.at(-1);
+  return limit?.maxTimeScale ?? 1;
+}
+
+/** Наибольшее число машин, при котором скорость еще допустима: подсказка к недоступной скорости. */
+export function maxVehiclesForTimeScale(timeScale: number): number {
+  const allowed = TIME_SCALE_LIMITS.filter((entry) => entry.maxTimeScale >= timeScale);
+  return allowed.at(-1)?.maxVehicles ?? 0;
+}
+
+/** Скорость из `TIME_SCALES`, ближайшая снизу к пределу: в нее съезжает симуляция при росте парка. */
+export function clampTimeScale(timeScale: number, vehicleCount: number): number {
+  const max = maxTimeScaleFor(vehicleCount);
+  if (timeScale <= max) {
+    return timeScale;
+  }
+  return TIME_SCALES.filter((scale) => scale <= max).at(-1) ?? 1;
+}
+
 /** Нет данных дольше этого времени - серверная авария NO_DATA. */
 export const NO_DATA_ALARM_MINUTES = 40;
 

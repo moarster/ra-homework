@@ -3,21 +3,16 @@
  *
  * При подключении клиент получает `hello` с состоянием симуляции, порядком показателей и
  * полным снапшотом. Дальше идут тики - не чаще 4 раз в секунду реального времени независимо
- * от скорости виртуального времени - и отдельные сообщения о событиях, изменении параметров
- * симуляции и дозаливке.
+ * от скорости виртуального времени - и отдельные сообщения о событиях и дозаливке.
+ * Изменения параметров симуляции идут не сюда, а в канал управления (`control.ts`):
+ * поток данных закрывается тумблером real-time, а канал управления - нет.
  *
  * В тике едут все точки позиции с прошлого тика (иначе трек рвется при ускорении) и только
  * последние значения остальных показателей.
  */
 
 import '@fastify/websocket';
-import type {
-  SimState,
-  TelemetryEvent,
-  TrackPoint,
-  VehicleSnapshot,
-  WsServerMessage,
-} from '@ra/contracts';
+import type { TelemetryEvent, TrackPoint, VehicleSnapshot, WsServerMessage } from '@ra/contracts';
 import { METRIC_ORDER } from '@ra/contracts';
 import type { FastifyInstance } from 'fastify';
 import { SERVER_RULES } from '../server-config.js';
@@ -53,7 +48,7 @@ interface TickVehicle {
   pos: TrackPoint[];
 }
 
-export class WsHub implements EngineListener {
+export class WsHub implements Omit<EngineListener, 'onSim'> {
   private readonly clients = new Set<Client>();
   private lastTickAt = 0;
   private pingTimer: NodeJS.Timeout | null = null;
@@ -141,10 +136,6 @@ export class WsHub implements EngineListener {
     }
     // События не пропускаются никогда, даже медленному клиенту.
     this.broadcast({ type: 'events', opened, closed }, true);
-  }
-
-  onSim(sim: SimState): void {
-    this.broadcast({ type: 'sim', sim }, true);
   }
 
   onBackfill(vehicleId: string, from: number, to: number): void {

@@ -466,9 +466,21 @@ export const wsEventsSchema = z.object({
   closed: z.array(telemetryEventSchema),
 });
 
+/** Состояние симуляции изменилось. Идет по каналу управления `/ws/sim`, а не по потоку данных. */
 export const wsSimSchema = z.object({
   type: z.literal('sim'),
   sim: simStateSchema,
+  /**
+   * Идентификатор вкладки, которая изменила параметры (заголовок `x-viewer-id` у
+   * `POST /api/sim`). Нет поля - изменение сделал сам сервер, например закончил предысторию.
+   */
+  changedBy: z.string().optional(),
+});
+
+/** Сколько вкладок сейчас держат канал управления: симуляция одна на всех. */
+export const wsViewersSchema = z.object({
+  type: z.literal('viewers'),
+  count: z.number().int().min(0),
 });
 
 export const wsBackfillSchema = z.object({
@@ -483,12 +495,19 @@ export const wsPongSchema = z.object({
   t: timestampSchema,
 });
 
+/** Поток данных `/ws`: работает, пока включен real-time. */
 export const wsServerMessageSchema = z.discriminatedUnion('type', [
   wsHelloSchema,
   wsTickSchema,
   wsEventsSchema,
-  wsSimSchema,
   wsBackfillSchema,
+  wsPongSchema,
+]);
+
+/** Канал управления `/ws/sim`: открыт всегда, независимо от тумблера real-time. */
+export const wsControlMessageSchema = z.discriminatedUnion('type', [
+  wsSimSchema,
+  wsViewersSchema,
   wsPongSchema,
 ]);
 
@@ -517,6 +536,7 @@ export type TrackQuery = z.infer<typeof trackQuerySchema>;
 export type EventsQuery = z.infer<typeof eventsQuerySchema>;
 export type SummaryQuery = z.infer<typeof summaryQuerySchema>;
 export type WsServerMessage = z.infer<typeof wsServerMessageSchema>;
+export type WsControlMessage = z.infer<typeof wsControlMessageSchema>;
 export type WsClientMessage = z.infer<typeof wsClientMessageSchema>;
 
 /** Уровень хранилища, из которого собран ответ серий. */

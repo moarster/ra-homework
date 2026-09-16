@@ -73,6 +73,8 @@ function initialState(): AppState {
     focusMetric: null,
     sim: INITIAL_SIM,
     connection: 'offline',
+    viewers: null,
+    simChangedByOtherAt: 0,
   };
 }
 
@@ -138,6 +140,12 @@ export const useAppStore = create<AppStore>()((set, get) => ({
   },
   setConnection: (connection) => {
     set({ connection });
+  },
+  setViewers: (viewers) => {
+    set({ viewers });
+  },
+  noteSimChangedByOther: () => {
+    set({ simChangedByOtherAt: Date.now() });
   },
 }));
 

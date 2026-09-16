@@ -15,14 +15,15 @@ import {
   type VehicleSnapshot,
   wsServerMessageSchema,
 } from '@ra/contracts';
+import { websocketUrl } from '../api/base-url.js';
 import type { ConnectionStatus } from '../store/types.js';
 import { snapshotStore, type TickPayload, type WsEvent } from './snapshot-store.js';
 
 /** Задержки переподключения, миллисекунды: растут до полуминуты и дальше не увеличиваются. */
-const RECONNECT_DELAYS_MS = [500, 1000, 2000, 4000, 8000, 15_000, 30_000];
+export const RECONNECT_DELAYS_MS = [500, 1000, 2000, 4000, 8000, 15_000, 30_000];
 
 /** Как часто шлем ping, миллисекунды реального времени. */
-const PING_INTERVAL_MS = 15_000;
+export const PING_INTERVAL_MS = 15_000;
 
 /**
  * Страховочный таймер применения тиков, миллисекунды. `requestAnimationFrame` не срабатывает,
@@ -33,6 +34,7 @@ const FLUSH_FALLBACK_MS = 250;
 
 export interface WsHandlers {
   onStatus: (status: ConnectionStatus) => void;
+  /** Состояние симуляции из `hello`. Дальнейшие изменения приходят по каналу управления. */
   onSim: (sim: SimState) => void;
   /** Пришел `hello`: снапшот уже применен, надо добрать пропущенный интервал через REST. */
   onHello: (sim: SimState) => void;
@@ -51,11 +53,6 @@ function looksLikeTick(value: unknown): value is {
   }
   const candidate = value as { t?: unknown; vehicles?: unknown };
   return typeof candidate.t === 'number' && Array.isArray(candidate.vehicles);
-}
-
-function websocketUrl(): string {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${window.location.host}/ws`;
 }
 
 export class WsClient {
@@ -108,7 +105,7 @@ export class WsClient {
   private openSocket(): void {
     this.validatedTick = false;
     this.handlers.onStatus(this.attempt === 0 ? 'connecting' : 'reconnecting');
-    const socket = new WebSocket(websocketUrl());
+    const socket = new WebSocket(websocketUrl('ws'));
     this.socket = socket;
 
     socket.onopen = () => {
@@ -194,11 +191,6 @@ export class WsClient {
         snapshotStore.replaceSnapshots(message.data.snapshot, message.data.sim.simTime);
         this.handlers.onSim(message.data.sim);
         this.handlers.onHello(message.data.sim);
-        break;
-      }
-      case 'sim': {
-        snapshotStore.setSimState(message.data.sim);
-        this.handlers.onSim(message.data.sim);
         break;
       }
       case 'events': {

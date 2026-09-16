@@ -14,6 +14,7 @@ import {
   vehiclesResponseSchema,
 } from '@ra/contracts';
 import { request } from './client.js';
+import { VIEWER_ID } from './viewer.js';
 
 /** Окно периода: все запросы телеметрии опираются на него. */
 export interface TimeWindow {
@@ -102,6 +103,7 @@ export const api = {
     request('/sim', simStateSchema, {
       method: 'POST',
       body: patch,
+      headers: { 'x-viewer-id': VIEWER_ID },
       ...(signal !== undefined ? { signal } : {}),
     }),
 };

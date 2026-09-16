@@ -1,6 +1,7 @@
 /** Параметры запуска сервера. Все берутся из окружения и имеют разумные значения по умолчанию. */
 
 import { CHAOS_LEVELS, type ChaosLevel, MIN_VEHICLES, TIME_SCALES } from '@ra/contracts';
+import { normalizeBasePath } from './base-path.js';
 
 function intFromEnv(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -40,6 +41,11 @@ export interface ServerEnv {
    */
   staticDir: string | null;
   /**
+   * Префикс публикации за обратным прокси: `/ra` для `moarse.ru/ra`, пустая строка -
+   * корень. Должен совпадать с `BASE_PATH`, с которым собран фронтенд.
+   */
+  basePath: string;
+  /**
    * Режим замера (`scripts/benchmark.ts`): разрешает скорости времени вне `TIME_SCALES`,
    * чтобы проверить, есть ли запас выше допустимого списка.
    */
@@ -70,6 +76,7 @@ export function readEnv(): ServerEnv {
       .map((origin) => origin.trim())
       .filter((origin) => origin.length > 0),
     staticDir: staticDir === '' ? null : staticDir,
+    basePath: normalizeBasePath(stringFromEnv('BASE_PATH', '')),
     benchmark: stringFromEnv('SIM_BENCHMARK', '0') === '1',
   };
 }

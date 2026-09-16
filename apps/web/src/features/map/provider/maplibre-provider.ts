@@ -13,8 +13,11 @@ import {
   Map as MapLibreMap,
   type MapSourceDataEvent,
   type StyleSpecification,
+  setWorkerUrl,
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+import { appUrl } from '@/shared/api/base-url.js';
 import {
   latFromMercatorY,
   lonFromMercatorX,
@@ -48,7 +51,7 @@ export const IMAGERY_ATTRIBUTION = 'Esri, Vantor, Earthstar Geographics';
  * (`exportTilesAllowed: false`), поэтому запасной слой - единственное изображение, а не пачка
  * тайлов. Экстент ответа совпал с запрошенным, поэтому углы берутся из `PIT_BOUNDS`.
  */
-const OFFLINE_IMAGERY_URL = '/offline/pit-imagery.jpg';
+const OFFLINE_IMAGERY_URL = appUrl('offline/pit-imagery.jpg');
 
 /**
  * Сколько ошибок загрузки тайлов подряд считать отказом подложки. Одиночная ошибка - обычное
@@ -63,6 +66,14 @@ const TILE_FAILURE_THRESHOLD = 6;
  * ушла в автономный режим при живой сети.
  */
 const TILE_TIMEOUT_MS = 12_000;
+
+/*
+ * Воркер MapLibre 6 - отдельный ES-модуль, который библиотека ищет рядом со своим файлом
+ * (`import.meta.url`). В сборке Vite библиотека вливается в общий бандл, файла рядом нет,
+ * и на его месте сервер отдавал `index.html`: воркер не запускался, карта оставалась пустой
+ * даже в автономном режиме. Vite собирает воркер отдельным файлом и подставляет его адрес.
+ */
+setWorkerUrl(maplibreWorkerUrl);
 
 /** Длительность перелетов, миллисекунды. */
 const FLY_DURATION_MS = 650;

@@ -17,6 +17,8 @@ export const useTheme = () => useAppStore((state) => state.theme);
 export const useSplit = () => useAppStore((state) => state.split);
 export const useSim = () => useAppStore((state) => state.sim);
 export const useConnection = () => useAppStore((state) => state.connection);
+export const useViewers = () => useAppStore((state) => state.viewers);
+export const useSimChangedByOtherAt = () => useAppStore((state) => state.simChangedByOtherAt);
 
 /** Длина периода по умолчанию: страховка, если в состоянии оказался неизвестный период. */
 const DEFAULT_PERIOD_SECONDS =

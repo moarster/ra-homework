@@ -6,9 +6,10 @@
 
 import { errorResponseSchema } from '@ra/contracts';
 import type { z } from 'zod';
+import { appUrl } from './base-url.js';
 
 /** В разработке путь проксируется Vite на сервер, в сборке - отдается тем же источником. */
-const API_BASE = '/api';
+const API_BASE = appUrl('api');
 
 export class ApiError extends Error {
   readonly status: number;
@@ -48,6 +49,7 @@ export interface RequestOptions {
   signal?: AbortSignal;
   method?: 'GET' | 'POST';
   body?: unknown;
+  headers?: Record<string, string>;
 }
 
 async function readError(response: Response): Promise<ApiError> {
@@ -68,13 +70,16 @@ export async function request<Schema extends z.ZodTypeAny>(
   schema: Schema,
   options: RequestOptions = {},
 ): Promise<z.infer<Schema>> {
-  const { params = {}, signal, method = 'GET', body } = options;
+  const { params = {}, signal, method = 'GET', body, headers = {} } = options;
   const response = await fetch(`${API_BASE}${path}${buildQuery(params)}`, {
     method,
     ...(signal !== undefined ? { signal } : {}),
     ...(body !== undefined
-      ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }
-      : {}),
+      ? {
+          headers: { ...headers, 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        }
+      : { headers }),
   });
   if (!response.ok) {
     throw await readError(response);

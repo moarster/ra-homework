@@ -1,10 +1,14 @@
 /**
  * Раздача собранного фронтенда с того же порта, что и API (docker-образ этапа 6).
  *
- * Своя маленькая реализация вместо `@fastify/static`: файлов десяток, кэширование не нужно
- * (прототип), а лишняя зависимость в рантайм-образе - лишняя. Неизвестный путь вне `/api`
- * отдает `index.html`: состояние экрана живет в query-параметрах, но прямая ссылка
- * на любой путь не должна давать 404.
+ * Своя маленькая реализация вместо `@fastify/static`: файлов десяток, а лишняя зависимость
+ * в рантайм-образе - лишняя. Неизвестный путь вне `/api` отдает `index.html`: состояние экрана
+ * живет в query-параметрах, но прямая ссылка на любой путь не должна давать 404.
+ *
+ * Кэширование минимальное, но есть: стенд открывают через интернет, а сборка с картой и снимок
+ * карьера весят по мегабайту с лишним. Файлы `assets/` содержат хеш в имени и не меняются
+ * никогда, `index.html` перепроверяется при каждой загрузке, иначе после выкладки браузер
+ * держал бы старую сборку. Прочие файлы (снимок карьера) без хеша: им хватит суток.
  */
 
 import { readFile, stat } from 'node:fs/promises';
@@ -35,12 +39,19 @@ async function isFile(path: string): Promise<boolean> {
   }
 }
 
+function cacheControl(root: string, file: string): string {
+  if (file.startsWith(join(root, 'assets') + sep)) {
+    return 'public, max-age=31536000, immutable';
+  }
+  return extname(file) === '.html' ? 'no-cache' : 'public, max-age=86400';
+}
+
 export function registerStatic(app: FastifyInstance, dir: string): void {
   const root = resolve(dir);
 
   app.get('/*', async (request, reply) => {
     const pathname = decodeURIComponent(request.url.split('?')[0] ?? '/');
-    if (pathname.startsWith('/api/') || pathname === '/ws') {
+    if (pathname.startsWith('/api/') || pathname === '/ws' || pathname.startsWith('/ws/')) {
       throw notFound(`Маршрут не найден: ${request.method} ${pathname}`);
     }
     // Путь нормализуется и обязан остаться внутри каталога: `../` наружу не выпускает.
@@ -48,6 +59,9 @@ export function registerStatic(app: FastifyInstance, dir: string): void {
     const inside = candidate === root || candidate.startsWith(root + sep);
     const file = inside && (await isFile(candidate)) ? candidate : join(root, 'index.html');
     const body = await readFile(file);
-    return reply.type(MIME[extname(file)] ?? 'application/octet-stream').send(body);
+    return reply
+      .header('cache-control', cacheControl(root, file))
+      .type(MIME[extname(file)] ?? 'application/octet-stream')
+      .send(body);
   });
 }

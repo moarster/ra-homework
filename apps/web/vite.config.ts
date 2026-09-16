@@ -11,7 +11,14 @@ import { defineConfig } from 'vite';
 /** Адрес сервера в разработке; совпадает с значением по умолчанию `apps/server`. */
 const SERVER_ORIGIN = process.env.SERVER_ORIGIN ?? 'http://127.0.0.1:3001';
 
+/**
+ * Префикс публикации сборки: `BASE_PATH=/ra/` для `moarse.ru/ra/`. Должен совпадать
+ * с `BASE_PATH` сервера. Для dev-сервера не задается: прокси ниже ждут корень.
+ */
+const BASE = `/${(process.env.BASE_PATH ?? '').replace(/^\/+|\/+$/g, '')}/`.replace('//', '/');
+
 export default defineConfig({
+  base: BASE,
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -29,5 +36,9 @@ export default defineConfig({
   build: {
     target: 'es2023',
     sourcemap: true,
+  },
+  // Воркер карты MapLibre запускается как модуль (`type: 'module'`): собираем его так же.
+  worker: {
+    format: 'es',
   },
 });

@@ -110,3 +110,11 @@ export const InfoIcon = () => (
     <path d="M12 11v5M12 8h.01" />
   </Svg>
 );
+
+export const ViewersIcon = () => (
+  <Svg>
+    <circle cx="9" cy="8" r="3.2" />
+    <path d="M3.5 19a5.5 5.5 0 0 1 11 0" />
+    <path d="M16 5.2a3 3 0 0 1 0 5.6M17.5 14a5 5 0 0 1 3 5" />
+  </Svg>
+);

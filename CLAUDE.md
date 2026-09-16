@@ -29,7 +29,9 @@ automation). Homework: `task-description.md`.
     (Structurizr: context, containers, Production deployment; direct LDAP bind to AD, no IdP;
     in-project logging service = OpenTelemetry Collector routing security events -> SIEM and
     operational logs/metrics -> external SigNoz; teal/cinnabar styles, cinnabar border = stateful),
-    `4-roadmap.md` (mermaid Gantt, checkpoints, risks), `5-estimation.md` (effort by week and role)
+    `4-roadmap.md` (mermaid Gantt, checkpoints, risks), `5-estimation.md` (effort by week and role),
+    `6-stand-guide.md` (reviewer manual for the public stand: every clickable thing + what happens
+    when several reviewers share the simulation; update it when UI interactions change)
   - `result/c4/docker-compose.yml` - Structurizr Lite for the DSL (`docker compose up` in `result/`,
     port `STRUCTURIZR_PORT` default 8080, `STRUCTURIZR_WORKSPACE_FILENAME=3-architecture`);
     generated layout files are in `result/.gitignore`.
@@ -51,15 +53,26 @@ pnpm --filter @ra/contracts build       # REQUIRED after editing contracts (web 
 npx biome check --write <absolute path>    # autoformat
 ```
 
-- Browser pane: `.claude/launch.json` has `ra-server` (port 3001) and `ra-web` (5173).
+- Browser pane: `.claude/launch.json` has `ra-server` (port 3001), `ra-web` (5173) and `ra-stand`
+  (built server on 3098 with `BASE_PATH=/ra` + `STATIC_DIR=apps/web/dist`: the production layout
+  without Docker; build first with `pnpm --filter @ra/server build` and
+  `BASE_PATH=/ra/ pnpm --filter @ra/web build`, open http://localhost:3098/ra/).
   Start them with `preview_start`, never via Bash.
 - Server env: `PORT`, `SIM_SEED` (20260913), `SIM_VEHICLES` (3), `SIM_HISTORY_SECONDS` (43200),
   `SIM_TIME_SCALE` (1, must be in `TIME_SCALES`), `SIM_CHAOS` (NORMAL), `STATIC_DIR` (serve built
   web from the server port), `SIM_BENCHMARK` (1 = any integer speed up to 6000), `LOG_LEVEL`,
-  `LOG_PRETTY`, `CORS_ORIGINS`. Web: `SERVER_ORIGIN`.
+  `LOG_PRETTY`, `CORS_ORIGINS`, `BASE_PATH` (publish prefix, e.g. `/ra`). Web: `SERVER_ORIGIN`,
+  `BASE_PATH` (build only, becomes Vite `base`; must match the server's).
 - Benchmark: `pnpm build` then `node scripts/benchmark.ts` (~35 min; env `BENCH_SECONDS`,
   `BENCH_COUNTS`, `BENCH_SCALES`, `BENCH_PORT` 3099). Spawns `apps/server/dist` per vehicle count.
 - Docker: `docker compose -f docker/docker-compose.yml up --build` -> http://localhost:3001.
+  Build arg `BASE_PATH` (default `/`) goes to both the web build and runtime env.
+- **Public stand** https://moarse.ru/ra/ (same VPS as ivandonchenko.ru, see skill
+  `moarse-server-diag`): push to `master` -> `.github/workflows/deploy.yml` (check + test, image
+  `ghcr.io/moarster/ra-homework` built with `BASE_PATH=/ra/`) -> watchtower on the server pulls
+  `:latest` in ~2 min. The server-side compose (traefik labels on network `proxy`, explicit router
+  priority, compress middleware, mem/cpu limits) lives only on the server, not in the repository.
+  Never write the customer's name anywhere in the repository: use `ra`. The GHCR package must be public for watchtower to pull.
 - Debug panel: append `?debug=1`.
 - Simulation control: `POST /api/sim {vehicleCount, timeScale, chaos, running}`. Restore to
   3 vehicles and x1 after tests. Generating history for 57 extra vehicles takes about 11 s.
@@ -84,12 +97,12 @@ apps/web             Vite + React 19 + Tailwind v4 + zustand + TanStack Query + 
 | `thresholds.ts` | `THRESHOLD_RULES`, `resolveThreshold` (context rules, cached), `zoneSeverity`, `metricSeverity`, `hasThresholds`. Zone `from` inclusive, `to` exclusive |
 | `severity.ts` | `Severity` 0/1/2/3, `QUALITY`, `pointSeverity`, `metricSeverities`, `worstSeverity` |
 | `derived.ts` | Vehicle status (decision table), brake max/spread, `payloadRatio`, `frontAxleShare`, `hoursToService`;  `dutyMode`, `DUTY_MODE_NAMES/HINTS`, `fullLoadFuelLitersPerHour` |
-| `config.ts` | `PERIODS`, `COMPARATIVE_CHARTS`, `APP_CONFIG`, `DERIVED_RULES`, `EVENT_RULES`, `QUERY_LIMITS`; `DUTY_MODE_RULES` (thresholds chosen by Claude, to be validated with the domain) |
+| `config.ts` | `PERIODS`, `COMPARATIVE_CHARTS`, `APP_CONFIG`, `DERIVED_RULES`, `EVENT_RULES`, `QUERY_LIMITS`; `DUTY_MODE_RULES` (thresholds chosen by Claude, to be validated with the domain); `TIME_SCALE_LIMITS` + `maxTimeScaleFor`, `clampTimeScale`, `maxVehiclesForTimeScale` (speed cap by vehicle count, bands chosen by Claude) |
 | `events.ts` | `TelemetryEvent`, server events, `thresholdEventCode`; `EVENT_METRICS`, `eventMetric` (event code -> metric chart) |
 | `flags.ts` | `ALARMS`, `WARNINGS`, `SYSTEM_STATE`, `decodeFlags` |
 | `vehicles.ts` | Models, 3 named vehicles (v-12, v-07, v-21), `generateFleet` |
 | `pit.ts` | Pit geometry, routes, zones, timezone |
-| `api.ts` | zod schemas for REST and websocket, `encodeSnapshot/decodeSnapshot` |
+| `api.ts` | zod schemas for REST and websocket, `encodeSnapshot/decodeSnapshot`. Two ws unions: `wsServerMessageSchema` (data `/ws`: hello, tick, events, backfill, pong) and `wsControlMessageSchema` (control `/ws/sim`: sim with optional `changedBy`, viewers, pong) |
 | `icons.ts` | icon set built from small helpers (`svg`, `path`, `circle`, `gear`, `drop`): 30 metrics, 6 groups, 7 statuses (`vehicleStatusIcon`); brakes differ by corner marker; rules enforced by `icons.test.ts` |
 
 ### 3.2. apps/server/src
@@ -101,10 +114,19 @@ apps/web             Vite + React 19 + Tailwind v4 + zustand + TanStack Query + 
   (`stored-metrics.ts`). `query.ts`: tier selection, folding to `maxPoints`,
   `t0 = floor(from/step)*step`, point i = `t0 + i*step`.
 - `events/detector.ts`, `events/journal.ts` - bits and threshold breaches folded into events.
-- `summary/summary.ts` - per-vehicle period summary. `ws/hub.ts` - tick broadcast (max 4/s).
+- `summary/summary.ts` - per-vehicle period summary. `ws/hub.ts` - data channel `/ws`, tick
+  broadcast (max 4/s); no longer sends `sim`. `ws/control.ts` - `ControlHub` for `/ws/sim`: sim
+  state on connect and on every change (with `changedBy`), viewer count on connect/disconnect,
+  ping with pong tracking so sleeping tabs drop out of the count. `app.ts` composes the engine
+  listener: data events -> `WsHub`, `onSim` -> `ControlHub`. Websockets use permessage-deflate.
+- `base-path.ts` - Fastify `rewriteUrl` strips `BASE_PATH`; unprefixed URLs still work (healthcheck).
+- `sim/engine.ts` `patch(patch, changedBy?)` rejects a time scale above `maxTimeScaleFor(count)` and
+  clamps the current scale down when the fleet grows (not in benchmark mode). `routes/sim.ts`
+  returns 400 `TIME_SCALE_LIMIT` and passes header `x-viewer-id` as `changedBy`.
 - `routes/` - REST per `prompts/SPEC.md` section 5. `RouteContext.anyTimeScale` (benchmark mode).
 - `static.ts` - own static handler (no `@fastify/static`): `/*` wildcard, SPA fallback to
-  `index.html`, `/api/*` unknown -> JSON 404, path must stay inside `STATIC_DIR`.
+  `index.html`, `/api/*` unknown -> JSON 404, path must stay inside `STATIC_DIR`. Cache-Control:
+  `assets/` immutable, html no-cache, other files one day.
 - `sim/engine.ts` exports `isAllowedTimeScale`, `MAX_BENCHMARK_TIME_SCALE`; `health()` has
   `cpu {userMicros, systemMicros}` and `clock.stepMsTotal/timedSteps` for the benchmark.
 
@@ -117,13 +139,26 @@ apps/web             Vite + React 19 + Tailwind v4 + zustand + TanStack Query + 
   `selectVehicle` resets `monitorTs` and `focusMetric`.
 - `shared/api` - typed client (zod-validated responses), hooks: `useVehicles` (cached forever),
   `useSeries`, `useTrack`, `useSummary`, `usePeriodWindow` (right edge steps every 5 s).
+  `base-url.ts`: `appUrl(path)` / `websocketUrl(path)` from `import.meta.env.BASE_URL` - every URL
+  (API, ws, offline imagery) must go through it. `viewer.ts`: per-tab `VIEWER_ID`, sent as
+  `x-viewer-id` on `POST /api/sim`.
 - `shared/ws` - `snapshot-store.ts` (mutable, outside React; `subscribeVehicle`, versions, tick
-  stats), `ws-client.ts` (ticks applied once per frame, 250 ms fallback timer).
+  stats), `ws-client.ts` (data channel, follows the real-time toggle; ticks applied once per frame,
+  250 ms fallback timer), `control-client.ts` (control channel, always connected, own reconnect).
+  `useRealtimeData` handles control messages: mirror sim into store/query cache, invalidate vehicles
+  and latest when fleet or chaos changed, `noteSimChangedByOther` when `changedBy` is not ours.
+  Store has `viewers` (null = control channel down) and `simChangedByOtherAt`.
 - `shared/ui` - Badge, Button, Panel, Select, Popover, Tooltip, ValueDisplay, MetricIcon
   (`metricId` / `groupId` / `statusId`), Skeleton, SeverityMark (shape per severity, duplicates
   color for color blindness), `severityClasses` (the only severity -> color mapping).
 - `features/topbar` - period, clock (`SimClock` already shows monitor time and the "к последней
   точке" button), real-time toggle, tracked metrics, simulation controls, theme.
+  Density is measured, not thresholded: `Topbar` wraps content in two `shrink-0` groups, measures
+  their width after every render and on ResizeObserver, `DensityPlanner` (`density.ts`, tested)
+  remembers how much wider each density is than the next one. Order: full -> tight (no labels) ->
+  dense (icons for title/date/tracked/user) -> compact (sim controls into popover).
+  `SimControls`: time scale options above the cap are disabled with a hint; viewers indicator;
+  group turns warn-colored with "изменено другим зрителем" for 6 s after a foreign change.
 - `features/map` - `provider/` (MapLibre behind an abstraction), `overlay/` (canvas renderer),
   `data/tail-store.ts`, `popups/VehiclePopup.tsx` (clicking a deviation sets `focusMetric`),
   `selection-origin.ts` (map flies to the track only if the vehicle was picked on the right).
@@ -237,6 +272,8 @@ Spec: `prompts/5_PROMPT_SIMULATOR.md`. Files in `apps/server/src/sim/simulator/`
   queries in `error` state on `hello` (forever-cached vehicles/config/sim stayed broken after a
   server outage until reload).
 - **Speeds:** `TIME_SCALES` = 1, 2, 5, 10, 30, 60, 120, 300 (benchmark: 60 vehicles x300 passes).
+  Capped by vehicle count for the shared public stand: <=5 x300, <=10 x120, <=20 x60, <=30 x30,
+  <=40 x10, <=50 x5, <=60 x2 (`TIME_SCALE_LIMITS`). Benchmark mode ignores the cap.
 - **Tooltip / MapPane ref loop fixed:** see pitfalls.
 
 ---
@@ -308,7 +345,7 @@ Spec: `prompts/5_PROMPT_SIMULATOR.md`. Files in `apps/server/src/sim/simulator/`
   boundaries (coolant 96, oil 110, return speed 26-32).
 - **`clock.advance(n)` overstates step cost** (3600 x 60 vehicles takes ~1.1 s even with the old
   stub). Judge "no lag at x60" by the real clock: `engine.health().clock.lagSeconds`.
-- **Port 3001 may be taken by another chat's `rusal-server`** running the same folder (tsx watch
+- **Port 3001 may be taken by another chat's `ra-server`** running the same folder (tsx watch
   picks up edits). Read its state, do not POST `/api/sim` to it.
 - **`pkill -f "<pattern>"` in the Bash tool kills its own shell** (the pattern is in the command
   line; exit 144). Use a bracket trick: `pkill -f "apps/server/dis[t]/index.js"`.
@@ -330,6 +367,19 @@ Spec: `prompts/5_PROMPT_SIMULATOR.md`. Files in `apps/server/src/sim/simulator/`
   before the build is lost - check `vehicles` in client stats before trusting a measurement.
 - **To read a full React error stack** in the Browser pane, patch `console.error` to collect
   `arg.stack`, then press the error boundary retry button.
+- **MapLibre 6 worker is a separate ES module** it looks up next to its own file
+  (`import.meta.url`). Bundled by Vite, the file was missing and the SPA fallback returned
+  `index.html`: in every production build (Docker image included) the map stayed empty, even in
+  offline mode, while dev worked. Fixed with `setWorkerUrl(... 'maplibre-gl-worker.mjs?worker&url')`
+  and `worker.format: 'es'`. Check the production build (`ra-stand`) after touching the map.
+- **Traefik router priority defaults to rule length**: the ivandonchenko router lists four hosts
+  including moarse.ru, so a shorter `/ra` rule loses without an explicit `priority`.
+- **`result/c4/workspace.json` is Structurizr output committed unformatted**: excluded in
+  `biome.json`, otherwise `pnpm check` (and CI) fails on it.
+- **Docker daemon is not running on the dev machine** (needs sudo): verify the image layout with
+  the `ra-stand` launch config instead.
+- **StrictMode double mount** logs "WebSocket is closed before the connection is established" for
+  `/ws/sim` in dev only; harmless.
 - **`pnpm deploy --prod` run inside the workspace marks `node_modules` as a production install**:
   afterwards every `pnpm check`/`pnpm test` fails in the deps status check
   (`ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`, it wants `pnpm install --production`). Deploy only

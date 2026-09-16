@@ -9,6 +9,7 @@ import {
   simPatchSchema,
   vehicleSnapshotSchema,
   vehiclesResponseSchema,
+  wsControlMessageSchema,
   wsServerMessageSchema,
 } from './api.js';
 import { APP_CONFIG } from './config.js';
@@ -110,6 +111,23 @@ describe('websocket', () => {
     });
     expect(message.type).toBe('backfill');
     expect(wsServerMessageSchema.safeParse({ type: 'unknown' }).success).toBe(false);
+  });
+
+  it('состояние симуляции идет только по каналу управления', () => {
+    const sim = {
+      simTime: 1_757_700_000,
+      historyFrom: 1_757_656_800,
+      timeScale: 1,
+      vehicleCount: 3,
+      chaos: 'NORMAL',
+      seed: 1,
+      running: true,
+    };
+    expect(wsControlMessageSchema.safeParse({ type: 'sim', sim, changedBy: 'a' }).success).toBe(
+      true,
+    );
+    expect(wsControlMessageSchema.safeParse({ type: 'viewers', count: 2 }).success).toBe(true);
+    expect(wsServerMessageSchema.safeParse({ type: 'sim', sim }).success).toBe(false);
   });
 });
 

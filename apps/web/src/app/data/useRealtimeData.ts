@@ -1,6 +1,8 @@
 /**
  * Связка данных приложения: зеркало состояния симуляции, подписка на websocket по тумблеру
- * real-time и реакция на сообщения сервера (`sim`, `backfill`, `events`).
+ * real-time и реакция на сообщения сервера (`backfill`, `events`). Состояние симуляции и число
+ * зрителей идут по отдельному каналу управления, который открыт всегда: симуляция одна на всех
+ * зрителей стенда, и чужое изменение должно дойти и при выключенном real-time.
  *
  * Живет один раз на приложение - выше сплиттера, чтобы обе области видели одни и те же данные.
  */
@@ -8,9 +10,9 @@
 import type { SimState } from '@ra/contracts';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { telemetryKeyPrefixes, useLatest, useSim } from '@/shared/api';
+import { queryKeys, telemetryKeyPrefixes, useLatest, useSim, VIEWER_ID } from '@/shared/api';
 import { useAppStore, useConnection, useRealtime } from '@/shared/store';
-import { snapshotStore, WsClient } from '@/shared/ws';
+import { ControlClient, snapshotStore, WsClient } from '@/shared/ws';
 
 /** Сбрасывает кеши телеметрии по одной машине: реакция на `backfill`. */
 function invalidateVehicleTelemetry(
@@ -51,6 +53,44 @@ export function useRealtimeData(): void {
   // Пока websocket не на связи, снапшот добирается обычным запросом.
   useLatest(!realtime || connection !== 'online');
 
+  // Канал управления: открыт всегда, тумблер real-time на него не влияет.
+  useEffect(() => {
+    const control = new ControlClient({
+      onSim: (next, changedBy) => {
+        const store = useAppStore.getState();
+        const previous = store.sim;
+        store.setSim(next);
+        snapshotStore.setSimState(next);
+        queryClient.setQueryData(queryKeys.sim, next);
+        if (changedBy !== undefined && changedBy !== VIEWER_ID) {
+          store.noteSimChangedByOther();
+        }
+        // Первое сообщение после загрузки - просто начальное состояние.
+        if (previous.simTime === 0) {
+          return;
+        }
+        // Те же сбросы, что после своего `POST /api/sim` (`useSetSim`): парк и данные другие.
+        const fleetChanged = previous.vehicleCount !== next.vehicleCount;
+        if (fleetChanged) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.vehicles });
+        }
+        if (fleetChanged || previous.chaos !== next.chaos) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.latest });
+        }
+      },
+      onViewers: (count) => {
+        useAppStore.getState().setViewers(count);
+      },
+      onDisconnected: () => {
+        useAppStore.getState().setViewers(null);
+      },
+    });
+    control.connect();
+    return () => {
+      control.disconnect();
+    };
+  }, [queryClient]);
+
   useEffect(() => {
     const client = new WsClient({
       onStatus: (status) => {
@@ -58,7 +98,7 @@ export function useRealtimeData(): void {
       },
       onSim: (next) => {
         useAppStore.getState().setSim(next);
-        queryClient.setQueryData(['sim'], next);
+        queryClient.setQueryData(queryKeys.sim, next);
       },
       onHello: () => {
         // Один запрос за пропущенный интервал: внутри окна данные уже пойдут по websocket.

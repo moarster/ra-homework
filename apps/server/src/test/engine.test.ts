@@ -4,6 +4,7 @@ import {
   codesToFlags,
   METRIC_ORDER,
   MIN_VEHICLES,
+  maxTimeScaleFor,
   PIT_CENTER,
   QUALITY,
   SYSTEM_STATE,
@@ -108,6 +109,22 @@ describe('изменение параметров симуляции', () => {
   it('недопустимая скорость времени отклоняется', () => {
     engine = createEngine();
     expect(() => engine?.patch({ timeScale: 7 })).toThrow();
+  });
+
+  it('скорость выше предела для числа машин отклоняется', () => {
+    engine = createEngine();
+    expect(() => engine?.patch({ vehicleCount: 12, timeScale: 300 })).toThrow();
+    expect(engine.store.count).toBe(MIN_VEHICLES);
+  });
+
+  it('рост парка снижает скорость до предела', () => {
+    engine = createEngine();
+    engine.patch({ timeScale: 300 });
+    engine.patch({ vehicleCount: 12 });
+    expect(engine.simState().timeScale).toBe(maxTimeScaleFor(12));
+    engine.patch({ vehicleCount: MIN_VEHICLES });
+    // Уменьшение парка скорость обратно не поднимает: это решение зрителя, а не сервера.
+    expect(engine.simState().timeScale).toBe(maxTimeScaleFor(12));
   });
 
   it('увеличение парка сохраняет историю существующих машин', () => {

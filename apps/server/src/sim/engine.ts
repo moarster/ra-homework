@@ -12,6 +12,7 @@ import {
   brakeTemperatureSpread,
   type ChaosLevel,
   type CompiledThresholds,
+  clampTimeScale,
   combinePointSeverity,
   compiledThresholds,
   contextMatches,
@@ -23,6 +24,7 @@ import {
   METRIC_ORDER,
   METRICS,
   MIN_VEHICLES,
+  maxTimeScaleFor,
   PIT_ZONE_KINDS,
   type PitZoneKind,
   payloadRatio,
@@ -124,7 +126,8 @@ type IngestMode = 'live' | 'history' | 'backfill';
 
 export interface EngineListener {
   onEvents(opened: TelemetryEvent[], closed: TelemetryEvent[]): void;
-  onSim(sim: SimState): void;
+  /** `changedBy` - вкладка, изменившая параметры; нет - изменение сделал сам сервер. */
+  onSim(sim: SimState, changedBy?: string): void;
   onBackfill(vehicleId: string, from: number, to: number): void;
   /** Вызывается после каждой пачки шагов часов: место для публикации тика. */
   onBatch(simTime: number): void;
@@ -225,9 +228,10 @@ export class SimEngine implements SnapshotWriter {
     this.log = options.log ?? (() => {});
     const startTime = Math.floor(Date.now() / 1000);
     this.historyFromValue = startTime - options.historySeconds;
+    const timeScale = options.timeScale ?? 1;
     this.clock = new SimClock({
       startTime,
-      timeScale: options.timeScale ?? 1,
+      timeScale: this.anyTimeScale ? timeScale : clampTimeScale(timeScale, this.vehicleCountValue),
       onStep: (t) => {
         this.stepOnce(t);
       },
@@ -291,11 +295,19 @@ export class SimEngine implements SnapshotWriter {
     };
   }
 
-  /** Изменение параметров симуляции: любое подмножество полей. */
-  patch(patch: SimPatch): SimState {
+  /**
+   * Изменение параметров симуляции: любое подмножество полей. `changedBy` уходит зрителям
+   * вместе с новым состоянием: симуляция одна на всех, и чужое изменение должно быть видно.
+   */
+  patch(patch: SimPatch, changedBy?: string): SimState {
     if (patch.timeScale !== undefined) {
       if (!isAllowedTimeScale(patch.timeScale, this.anyTimeScale)) {
         throw new Error(`недопустимая скорость времени: ${patch.timeScale}`);
+      }
+      const count =
+        patch.vehicleCount !== undefined ? clampVehicleCount(patch.vehicleCount) : this.store.count;
+      if (!this.anyTimeScale && patch.timeScale > maxTimeScaleFor(count)) {
+        throw new Error(`скорость x${patch.timeScale} выше предела для ${count} машин`);
       }
       // Смена скорости не перезапускает симуляцию и не рвет историю.
       this.clock.setTimeScale(patch.timeScale);
@@ -306,6 +318,10 @@ export class SimEngine implements SnapshotWriter {
     }
     if (patch.vehicleCount !== undefined) {
       this.setVehicleCount(patch.vehicleCount);
+      // Рост парка снижает скорость до предела, а не отклоняет изменение: так проще зрителю.
+      if (!this.anyTimeScale) {
+        this.clock.setTimeScale(clampTimeScale(this.clock.timeScale, this.store.count));
+      }
     }
     if (patch.running !== undefined) {
       if (patch.running) {
@@ -315,7 +331,7 @@ export class SimEngine implements SnapshotWriter {
       }
     }
     const state = this.simState();
-    this.listener?.onSim(state);
+    this.listener?.onSim(state, changedBy);
     return state;
   }
 

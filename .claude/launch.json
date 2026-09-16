@@ -12,6 +12,20 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@ra/server", "dev"],
       "port": 3001
+    },
+    {
+      "name": "ra-stand",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "NODE_ENV=production",
+        "PORT=3098",
+        "BASE_PATH=/ra",
+        "STATIC_DIR=apps/web/dist",
+        "node",
+        "apps/server/dist/index.js"
+      ],
+      "port": 3098,
+      "url": "http://localhost:3098"
     }
   ]
 }

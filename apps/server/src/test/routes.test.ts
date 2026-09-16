@@ -29,6 +29,7 @@ const env: ServerEnv = {
   corsOrigins: ['http://localhost:5173'],
   staticDir: null,
   benchmark: false,
+  basePath: '/ra',
 };
 
 let app: FastifyInstance;
@@ -215,5 +216,26 @@ describe('управление симуляцией', () => {
       payload: { vehicleCount: 100 },
     });
     expect(tooMany.json<{ error: { code: string } }>().error.code).toBe('INVALID_VEHICLE_COUNT');
+  });
+
+  it('POST /api/sim отклоняет скорость выше предела для числа машин', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sim',
+      payload: { vehicleCount: 60, timeScale: 300 },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json<{ error: { code: string } }>().error.code).toBe('TIME_SCALE_LIMIT');
+    expect(engine.store.count).toBe(MIN_VEHICLES);
+  });
+});
+
+describe('публикация под префиксом', () => {
+  it('маршруты доступны и с префиксом, и без него', async () => {
+    const prefixed = await app.inject({ method: 'GET', url: '/ra/api/sim' });
+    expect(prefixed.statusCode).toBe(200);
+    expect(simStateSchema.safeParse(prefixed.json()).success).toBe(true);
+    const plain = await app.inject({ method: 'GET', url: '/api/health' });
+    expect(plain.statusCode).toBe(200);
   });
 });

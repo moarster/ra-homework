@@ -32,6 +32,7 @@ beforeAll(async () => {
     corsOrigins: [],
     staticDir: dir,
     benchmark: false,
+    basePath: '',
   };
   app = (await buildApp(env)).app;
 });
@@ -47,6 +48,7 @@ describe('статика фронта', () => {
     expect(response.statusCode).toBe(200);
     expect(response.headers['content-type']).toContain('text/javascript');
     expect(response.body).toBe('export const x = 1;');
+    expect(response.headers['cache-control']).toContain('immutable');
   });
 
   it('корень и неизвестный путь отдают index.html, query не мешает', async () => {
@@ -55,6 +57,7 @@ describe('статика фронта', () => {
       expect(response.statusCode, url).toBe(200);
       expect(response.headers['content-type'], url).toContain('text/html');
       expect(response.body, url).toBe(INDEX);
+      expect(response.headers['cache-control'], url).toBe('no-cache');
     }
   });
 

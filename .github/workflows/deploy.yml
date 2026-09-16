@@ -1,0 +1,86 @@
+# Сборка и выкладка стенда moarse.ru/ra.
+#
+# Схема та же, что у ivandonchenko.ru: CI собирает образ и кладет его в ghcr.io, сервер сам
+# подтягивает :latest через watchtower (раз в 2 минуты). Доступов к серверу в GitHub нет.
+# Серверный compose с метками traefik живет только на сервере.
+
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  check:
+    name: Check and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.16.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Сервер и фронт берут контракты из dist: без сборки tsc не увидит их экспортов.
+      - run: pnpm --filter @ra/contracts build
+      - run: pnpm check
+      - run: pnpm test
+
+  build-and-push:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    needs: check
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          # Стенд живет под префиксом: фронт собирается с ним, сервер его снимает.
+          build-args: |
+            BASE_PATH=/ra/
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy (pull-based via watchtower)
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment:
+      name: production
+      url: https://moarse.ru/ra/
+    steps:
+      - name: Mark deployment
+        run: echo "Image pushed to ghcr. The server's watchtower pulls :latest within ~2 min. No deploy credentials are stored in GitHub."

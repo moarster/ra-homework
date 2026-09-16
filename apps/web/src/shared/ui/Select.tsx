@@ -14,6 +14,8 @@ export interface SelectOption<T extends string | number> {
   /** Второй строкой: пояснение варианта. */
   hint?: string;
   icon?: ReactNode;
+  /** Вариант виден, но недоступен: причина - в `hint`. */
+  disabled?: boolean;
 }
 
 export interface SelectProps<T extends string | number> {
@@ -72,6 +74,9 @@ export function Select<T extends string | number>({
 
   const commit = (index: number) => {
     const option = options[index];
+    if (option?.disabled === true) {
+      return;
+    }
     if (option !== undefined) {
       onChange(option.value);
     }
@@ -161,11 +166,12 @@ export function Select<T extends string | number>({
               type="button"
               role="option"
               aria-selected={option.value === value}
+              aria-disabled={option.disabled === true}
               onClick={() => commit(index)}
               onMouseEnter={() => setActiveIndex(index)}
               className={cx(
                 'flex items-center gap-2 rounded-control px-2 py-1.5 text-left text-[12px]',
-                'cursor-pointer',
+                option.disabled === true ? 'cursor-not-allowed opacity-45' : 'cursor-pointer',
                 index === activeIndex ? 'bg-surface-hover' : '',
                 option.value === value ? 'text-primary-text font-medium' : 'text-fg',
               )}

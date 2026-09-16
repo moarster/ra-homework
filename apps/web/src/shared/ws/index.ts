@@ -1,3 +1,4 @@
+export { ControlClient, type ControlHandlers } from './control-client.js';
 export * from './hooks.js';
 export {
   type SnapshotStats,

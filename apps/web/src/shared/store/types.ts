@@ -30,6 +30,13 @@ export interface AppState {
   /** Зеркало состояния симуляции на сервере. */
   sim: SimState;
   connection: ConnectionStatus;
+  /** Сколько вкладок держат канал управления; null - канал не на связи. */
+  viewers: number | null;
+  /**
+   * Когда параметры симуляции последний раз поменял другой зритель, миллисекунды `Date.now()`;
+   * 0 - не менял. Симуляция одна на всех, и без пометки чужое изменение выглядело бы сбоем.
+   */
+  simChangedByOtherAt: number;
 }
 
 export interface AppActions {
@@ -51,6 +58,8 @@ export interface AppActions {
   resetSplit: () => void;
   setSim: (sim: SimState) => void;
   setConnection: (connection: ConnectionStatus) => void;
+  setViewers: (viewers: number | null) => void;
+  noteSimChangedByOther: () => void;
 }
 
 export type AppStore = AppState & AppActions;
