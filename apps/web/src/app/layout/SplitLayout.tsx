@@ -99,10 +99,8 @@ export function SplitLayout({ left, right, leftLabel, rightLabel }: SplitLayoutP
     }
   }, [containerWidth, clamp, split.leftPercent, split.collapsed]);
 
+  // Тянуть можно и из свернутого состояния: setSplitPercent снимает сворачивание.
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (split.collapsed !== 'none') {
-      return;
-    }
     const now = Date.now();
     if (now - lastPressAtRef.current < DOUBLE_CLICK_MS) {
       lastPressAtRef.current = 0;
@@ -162,6 +160,8 @@ export function SplitLayout({ left, right, leftLabel, rightLabel }: SplitLayoutP
 
   const leftCollapsed = split.collapsed === 'left';
   const rightCollapsed = split.collapsed === 'right';
+  const leftArrowLabel = rightCollapsed ? `Показать: ${rightLabel}` : `Свернуть: ${leftLabel}`;
+  const rightArrowLabel = leftCollapsed ? `Показать: ${leftLabel}` : `Свернуть: ${rightLabel}`;
   const leftWidth = leftCollapsed ? '0%' : rightCollapsed ? '100%' : `${clamp(split.leftPercent)}%`;
 
   return (
@@ -198,8 +198,7 @@ export function SplitLayout({ left, right, leftLabel, rightLabel }: SplitLayoutP
         onKeyDown={onKeyDown}
         className={cx(
           'group relative z-10 flex w-2 shrink-0 touch-none items-center justify-center select-none',
-          'outline-offset-[-2px]',
-          split.collapsed === 'none' ? 'cursor-col-resize' : 'cursor-default',
+          'cursor-col-resize outline-offset-[-2px]',
         )}
       >
         <span
@@ -211,28 +210,41 @@ export function SplitLayout({ left, right, leftLabel, rightLabel }: SplitLayoutP
             не долетая до onClick кнопки. */}
         <div
           onPointerDown={(event) => event.stopPropagation()}
-          className="glass-float absolute top-1/2 z-10 flex -translate-y-1/2 flex-col gap-0.5 rounded-control p-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+          className={cx(
+            'glass-float absolute top-1/2 z-10 flex -translate-y-1/2 flex-col gap-0.5 rounded-control p-0.5 transition-opacity',
+            // В свернутом состоянии кнопка возврата видна всегда, иначе ее не найти.
+            split.collapsed === 'none'
+              ? 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+              : 'opacity-100',
+            // У края экрана центрированная по границе кнопка наполовину уходит за окно.
+            leftCollapsed && 'left-0',
+            rightCollapsed && 'right-0',
+          )}
         >
-          <Tooltip
-            content={leftCollapsed ? `Показать: ${leftLabel}` : `Свернуть: ${leftLabel}`}
-            placement="bottom"
-          >
-            <IconButton
-              label={leftCollapsed ? `Показать: ${leftLabel}` : `Свернуть: ${leftLabel}`}
-              icon={<ChevronIcon direction="left" />}
-              onClick={() => useAppStore.getState().setCollapsed(leftCollapsed ? 'none' : 'left')}
-            />
-          </Tooltip>
-          <Tooltip
-            content={rightCollapsed ? `Показать: ${rightLabel}` : `Свернуть: ${rightLabel}`}
-            placement="bottom"
-          >
-            <IconButton
-              label={rightCollapsed ? `Показать: ${rightLabel}` : `Свернуть: ${rightLabel}`}
-              icon={<ChevronIcon direction="right" />}
-              onClick={() => useAppStore.getState().setCollapsed(rightCollapsed ? 'none' : 'right')}
-            />
-          </Tooltip>
+          {/* Стрелки двигают границу в свою сторону: из свернутого состояния стрелка к краю
+              не нужна, а обратная возвращает обе области. */}
+          {!leftCollapsed && (
+            <Tooltip content={leftArrowLabel} placement="bottom">
+              <IconButton
+                label={leftArrowLabel}
+                icon={<ChevronIcon direction="left" />}
+                onClick={() =>
+                  useAppStore.getState().setCollapsed(rightCollapsed ? 'none' : 'left')
+                }
+              />
+            </Tooltip>
+          )}
+          {!rightCollapsed && (
+            <Tooltip content={rightArrowLabel} placement="bottom">
+              <IconButton
+                label={rightArrowLabel}
+                icon={<ChevronIcon direction="right" />}
+                onClick={() =>
+                  useAppStore.getState().setCollapsed(leftCollapsed ? 'none' : 'right')
+                }
+              />
+            </Tooltip>
+          )}
         </div>
       </div>
 

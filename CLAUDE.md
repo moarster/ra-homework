@@ -132,7 +132,9 @@ apps/web             Vite + React 19 + Tailwind v4 + zustand + TanStack Query + 
 
 ### 3.3. apps/web/src
 
-- `app/` - `App.tsx`, `layout/SplitLayout.tsx` (right section is container `@container/monitor`),
+- `app/` - `App.tsx`, `layout/SplitLayout.tsx` (right section is container `@container/monitor`;
+  arrows move the border toward their side: collapse from split, restore from the opposite collapse;
+  dragging also works from a collapsed state),
   `data/useRealtimeData.ts` (ws, cache invalidation on `hello`/`backfill`/`events`),
   `theme/tokens.css` + `app.css` (tokens, utilities `glass`, `glass-float`, `glass-popup`, `tabular`).
 - `shared/store` - zustand, `AppState` from `prompts/SPEC.md` 10; URL sync (`url.ts`, `sync.ts`);
@@ -151,7 +153,7 @@ apps/web             Vite + React 19 + Tailwind v4 + zustand + TanStack Query + 
 - `shared/ui` - Popover and Tooltip use the dense `glass-popup` surface (translucent `glass-float`
   let content show through). Tooltip hides after its anchor is pressed (until pointer leaves) and
   never shows while the anchor has `aria-expanded="true"` on itself or inside, so it does not cover
-  the list it opened. No `cursor-help` in the topbar.
+  the list it opened. `IconButton` sets no native `title` (it doubled the Tooltip); wrap it in `Tooltip`. No `cursor-help` in the topbar.
   Badge, Button, Panel, Select, Popover, Tooltip, ValueDisplay, MetricIcon
   (`metricId` / `groupId` / `statusId`), Skeleton, SeverityMark (shape per severity, duplicates
   color for color blindness), `severityClasses` (the only severity -> color mapping).
